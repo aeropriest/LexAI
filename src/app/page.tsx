@@ -15,6 +15,7 @@ import {
   Github,
 } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function LandingPage() {
   const router = useRouter();
@@ -46,12 +47,24 @@ export default function LandingPage() {
               in seconds. Stop spending hours on manual review and start
               getting answers instantly.
             </p>
-            <Button size="lg" onClick={() => router.push('/app')}>
-              Get Started for Free
-            </Button>
-            <p className="text-sm text-muted-foreground mt-4">
-              No credit card required.
-            </p>
+            <div className="flex flex-col items-center gap-4">
+                <Button size="lg" onClick={() => router.push('/app')}>
+                Get Started for Free
+                </Button>
+                <p className="text-sm text-muted-foreground">
+                No credit card required.
+                </p>
+            </div>
+            <div className="mt-12 rounded-lg overflow-hidden border-2 border-primary/20 shadow-2xl shadow-primary/20">
+                <Image 
+                    src="https://picsum.photos/seed/lexai-hero/1200/600"
+                    alt="LexiAI in action"
+                    width={1200}
+                    height={600}
+                    className="object-cover"
+                    data-ai-hint="legal document"
+                />
+            </div>
           </div>
         </section>
 
