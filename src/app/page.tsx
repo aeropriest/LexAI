@@ -2,51 +2,216 @@
 
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { AppLogo } from '@/components/icons';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import {
+  FileText,
+  Search,
+  BrainCircuit,
+  MessageSquare,
+  Twitter,
+  Linkedin,
+  Github,
+} from 'lucide-react';
+import Link from 'next/link';
 
 export default function LandingPage() {
   const router = useRouter();
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground font-body antialiased">
-      <header className="p-4 border-b bg-card">
+      {/* Header */}
+      <header className="p-4 border-b bg-card sticky top-0 z-50 backdrop-blur-sm bg-card/80">
         <div className="container mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-7 w-7 text-primary"
-            >
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-              <polyline points="14 2 14 8 20 8"></polyline>
-              <path d="M12 18a4 4 0 0 0 4-4H8a4 4 0 0 0 4 4Z"></path>
-              <path d="M12 8v2"></path>
-              <path d="M12 14v-2"></path>
-              <path d="m14.6 11.2-.8.8"></path>
-              <path d="m9.4 11.2.8.8"></path>
-            </svg>
+            <AppLogo className="h-7 w-7 text-primary" />
             <h1 className="text-xl font-bold text-foreground">LexiAI</h1>
           </div>
+          <Button onClick={() => router.push('/app')}>Try Now</Button>
         </div>
       </header>
-      <main className="flex-1 flex flex-col items-center justify-center text-center container mx-auto p-4 lg:p-6">
-        <h2 className="text-4xl md:text-5xl font-bold mb-4">
-          Unlock Insights from Your Legal Documents
-        </h2>
-        <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
-          LexiAI is an AI-powered assistant that helps you analyze, understand, and extract key information from complex legal texts in seconds.
-        </p>
-        <Button size="lg" onClick={() => router.push('/app')}>
-          Try Now
-        </Button>
+
+      {/* Main Content */}
+      <main className="flex-1">
+        {/* Hero Section */}
+        <section className="text-center py-20 lg:py-32 bg-card/50">
+          <div className="container mx-auto px-4">
+            <h2 className="text-4xl md:text-6xl font-bold mb-4 tracking-tight">
+              Unlock Insights from Your Legal Documents
+            </h2>
+            <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto mb-8">
+              LexiAI is an AI-powered assistant that helps you analyze,
+              understand, and extract key information from complex legal texts
+              in seconds. Stop spending hours on manual review and start
+              getting answers instantly.
+            </p>
+            <Button size="lg" onClick={() => router.push('/app')}>
+              Get Started for Free
+            </Button>
+            <p className="text-sm text-muted-foreground mt-4">
+              No credit card required.
+            </p>
+          </div>
+        </section>
+
+        {/* Features Section */}
+        <section id="features" className="py-20 lg:py-24">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-12">
+              <h3 className="text-3xl md:text-4xl font-bold">
+                Powerful Features, Simplified
+              </h3>
+              <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
+                Everything you need to supercharge your legal document analysis.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+              <FeatureCard
+                icon={<FileText className="h-8 w-8 text-primary" />}
+                title="Document Upload"
+                description="Easily upload documents in various formats including PDF, DOC, TXT, and even images."
+              />
+              <FeatureCard
+                icon={<Search className="h-8 w-8 text-primary" />}
+                title="Instant Search & Q&A"
+                description="Ask natural language questions and get precise answers from your documents in real-time."
+              />
+              <FeatureCard
+                icon={<BrainCircuit className="h-8 w-8 text-primary" />}
+                title="AI-Powered Summaries"
+                description="Generate concise summaries and identify key clauses, definitions, and obligations automatically."
+              />
+              <FeatureCard
+                icon={<MessageSquare className="h-8 w-8 text-primary" />}
+                title="Saved Chat History"
+                description="Securely save your analysis sessions and revisit your findings anytime, on any device."
+              />
+            </div>
+          </div>
+        </section>
+
+        {/* Testimonials Section */}
+        <section id="testimonials" className="py-20 lg:py-24 bg-card/50">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-12">
+              <h3 className="text-3xl md:text-4xl font-bold">
+                Trusted by Legal Professionals
+              </h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              <TestimonialCard
+                name="Sarah J., Corporate Lawyer"
+                testimonial="LexiAI has been a game-changer for due diligence. What used to take days now takes a fraction of the time. It's an indispensable tool in my practice."
+                avatarUrl="https://i.pravatar.cc/150?img=1"
+              />
+              <TestimonialCard
+                name="Michael R., Paralegal"
+                testimonial="I'm amazed at how accurately LexiAI can pull specific information from dense contracts. It saves me from the headache of manual searching."
+                avatarUrl="https://i.pravatar.cc/150?img=3"
+              />
+              <TestimonialCard
+                name="Emily Chen, Law Student"
+                testimonial="As a student, LexiAI helps me quickly grasp the core concepts in complex case files. It's like having a personal research assistant."
+                avatarUrl="https://i.pravatar.cc/150?img=5"
+              />
+            </div>
+          </div>
+        </section>
       </main>
-      <footer className="p-4 border-t bg-card text-center text-sm text-muted-foreground">
-        © {new Date().getFullYear()} LexiAI. All rights reserved.
+
+      {/* Footer */}
+      <footer className="py-12 border-t bg-card">
+        <div className="container mx-auto px-4 text-center">
+          <div className="flex flex-col md:flex-row justify-between items-center space-y-8 md:space-y-0">
+            <div className="flex items-center gap-3">
+              <AppLogo className="h-7 w-7 text-primary" />
+              <h1 className="text-xl font-bold text-foreground">LexiAI</h1>
+            </div>
+            <div className="flex space-x-6 text-muted-foreground">
+              <Link href="#" className="hover:text-primary">
+                Features
+              </Link>
+              <Link href="#" className="hover:text-primary">
+                Pricing
+              </Link>
+              <Link href="#" className="hover:text-primary">
+                About Us
+              </Link>
+              <Link href="#" className="hover:text-primary">
+                Contact
+              </Link>
+            </div>
+            <div className="flex space-x-4">
+              <Link href="#" aria-label="Twitter">
+                <Twitter className="h-6 w-6 text-muted-foreground hover:text-primary" />
+              </Link>
+              <Link href="#" aria-label="LinkedIn">
+                <Linkedin className="h-6 w-6 text-muted-foreground hover:text-primary" />
+              </Link>
+              <Link href="#" aria-label="GitHub">
+                <Github className="h-6 w-6 text-muted-foreground hover:text-primary" />
+              </Link>
+            </div>
+          </div>
+          <div className="mt-8 pt-8 border-t text-sm text-muted-foreground flex flex-col sm:flex-row justify-between items-center space-y-4 sm:space-y-0">
+            <p>© {new Date().getFullYear()} LexiAI. All rights reserved.</p>
+            <div className="flex space-x-4">
+              <Link href="#" className="hover:text-primary">
+                Terms of Service
+              </Link>
+              <Link href="#" className="hover:text-primary">
+                Privacy Policy
+              </Link>
+            </div>
+          </div>
+        </div>
       </footer>
     </div>
+  );
+}
+
+function FeatureCard({
+  icon,
+  title,
+  description,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+}) {
+  return (
+    <Card className="text-center p-6">
+      <div className="flex justify-center mb-4">{icon}</div>
+      <CardTitle className="text-xl mb-2">{title}</CardTitle>
+      <p className="text-muted-foreground">{description}</p>
+    </Card>
+  );
+}
+
+function TestimonialCard({
+  name,
+  testimonial,
+  avatarUrl,
+}: {
+  name: string;
+  testimonial: string;
+  avatarUrl: string;
+}) {
+  return (
+    <Card className="p-6 text-left">
+      <CardContent className="p-0">
+        <p className="italic text-muted-foreground mb-4">"{testimonial}"</p>
+        <div className="flex items-center gap-4">
+          <Avatar>
+            <AvatarImage src={avatarUrl} alt={name} />
+            <AvatarFallback>{name.charAt(0)}</AvatarFallback>
+          </Avatar>
+          <div>
+            <p className="font-semibold">{name}</p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
