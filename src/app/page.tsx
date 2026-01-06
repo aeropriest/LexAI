@@ -22,51 +22,55 @@ export default function LandingPage() {
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground font-body antialiased">
-      {/* Header */}
-      <header className="p-4 border-b bg-card sticky top-0 z-50 backdrop-blur-sm bg-card/80">
-        <div className="container mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <AppLogo className="h-7 w-7 text-primary" />
-            <h1 className="text-xl font-bold text-foreground">LexiAI</h1>
-          </div>
-          <Button onClick={() => router.push('/app')}>Try Now</Button>
-        </div>
-      </header>
 
-      {/* Main Content */}
       <main className="flex-1">
         {/* Hero Section */}
-        <section className="text-center py-20 lg:py-32 bg-card/50">
-          <div className="container mx-auto px-4">
-            <h2 className="text-4xl md:text-6xl font-bold mb-4 tracking-tight">
-              Unlock Insights from Your Legal Documents
-            </h2>
-            <p className="text-lg md:text-xl text-muted-foreground max-w-3xl mx-auto mb-8">
-              LexiAI is an AI-powered assistant that helps you analyze,
-              understand, and extract key information from complex legal texts
-              in seconds. Stop spending hours on manual review and start
-              getting answers instantly.
-            </p>
-            <div className="flex flex-col items-center gap-4">
-                <Button size="lg" onClick={() => router.push('/app')}>
-                Get Started for Free
-                </Button>
-                <p className="text-sm text-muted-foreground">
-                No credit card required.
-                </p>
+        <section className="relative h-screen min-h-[600px] w-full text-white">
+          {/* Background Image */}
+          <Image 
+            src="https://picsum.photos/seed/lexai-hero/1920/1080"
+            alt="Legal documents analysis background"
+            fill
+            className="object-cover"
+            data-ai-hint="legal document"
+            priority
+          />
+          {/* Black Tint Overlay */}
+          <div className="absolute inset-0 bg-black/60" />
+
+          {/* Header */}
+          <header className="absolute top-0 left-0 right-0 p-4 z-10">
+            <div className="container mx-auto flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <AppLogo className="h-7 w-7 text-white" />
+                <h1 className="text-xl font-bold text-white">LexiAI</h1>
+              </div>
+              <Button onClick={() => router.push('/app')} variant="secondary">Try Now</Button>
             </div>
-            <div className="mt-12 rounded-lg overflow-hidden border-2 border-primary/20 shadow-2xl shadow-primary/20">
-                <Image 
-                    src="https://picsum.photos/seed/lexai-hero/1200/600"
-                    alt="LexiAI in action"
-                    width={1200}
-                    height={600}
-                    className="object-cover"
-                    data-ai-hint="legal document"
-                />
-            </div>
+          </header>
+
+          {/* Hero Content */}
+          <div className="relative z-5 flex h-full flex-col items-center justify-center text-center px-4">
+              <h2 className="text-4xl md:text-6xl font-bold mb-4 tracking-tight">
+                Unlock Insights from Your Legal Documents
+              </h2>
+              <p className="text-lg md:text-xl text-white/80 max-w-3xl mx-auto mb-8">
+                LexiAI is an AI-powered assistant that helps you analyze,
+                understand, and extract key information from complex legal texts
+                in seconds. Stop spending hours on manual review and start
+                getting answers instantly.
+              </p>
+              <div className="flex flex-col items-center gap-4">
+                  <Button size="lg" onClick={() => router.push('/app')} variant="secondary" className="bg-white text-primary hover:bg-white/90">
+                    Get Started for Free
+                  </Button>
+                  <p className="text-sm text-white/60">
+                  No credit card required.
+                  </p>
+              </div>
           </div>
         </section>
+
 
         {/* Features Section */}
         <section id="features" className="py-20 lg:py-24">
