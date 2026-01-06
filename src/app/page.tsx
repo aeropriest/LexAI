@@ -9,6 +9,7 @@ import type { ChatMessage, SuggestedQuestion } from '@/lib/types';
 
 export default function Home() {
   const [documentText, setDocumentText] = useState('');
+  const [isExtracting, setIsExtracting] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [suggestedQuestions, setSuggestedQuestions] = useState<SuggestedQuestion[]>([]);
 
@@ -34,6 +35,8 @@ export default function Home() {
             <DocumentView
                 documentText={documentText}
                 setDocumentText={handleSetDocumentText}
+                isExtracting={isExtracting}
+                setIsExtracting={setIsExtracting}
             />
             <Chat
                 documentText={documentText}

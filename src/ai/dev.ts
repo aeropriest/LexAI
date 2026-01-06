@@ -3,3 +3,4 @@ config();
 
 import '@/ai/flows/answer-questions-about-document.ts';
 import '@/ai/flows/generate-suggested-questions.ts';
+import '@/ai/flows/extract-text-from-file.ts';
