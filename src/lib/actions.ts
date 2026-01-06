@@ -1,5 +1,6 @@
 'use server';
 
+import { addDoc, collection } from 'firebase/firestore';
 import {
   answerQuestionsAboutDocument,
   AnswerQuestionsAboutDocumentInput,
@@ -12,6 +13,7 @@ import {
   generateSuggestedQuestions,
   GenerateSuggestedQuestionsInput,
 } from '@/ai/flows/generate-suggested-questions';
+import { db } from '@/lib/firebase';
 import { z } from 'zod';
 
 const askQuestionSchema = z.object({
@@ -96,4 +98,40 @@ export async function extractTextAction(
       error: `An error occurred while extracting text from the file. Please ensure it is a valid document or image. Details: ${errorMessage}`,
     };
   }
+}
+
+const saveUserSchema = z.object({
+    name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
+    email: z.string().email({ message: 'Please enter a valid email address.' }),
+});
+
+export async function saveUserAction(prevState: any, formData: FormData) {
+    try {
+        const validatedData = saveUserSchema.safeParse({
+            name: formData.get('name'),
+            email: formData.get('email'),
+        });
+
+        if (!validatedData.success) {
+            return {
+                error: validatedData.error.errors.map((e) => e.message).join(' '),
+            };
+        }
+
+        const { name, email } = validatedData.data;
+
+        await addDoc(collection(db, 'users'), {
+            name,
+            email,
+            createdAt: new Date(),
+        });
+
+        return { error: null };
+    } catch (error) {
+        console.error(error);
+        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+        return {
+            error: `Failed to save user data. Details: ${errorMessage}`,
+        };
+    }
 }
