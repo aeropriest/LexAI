@@ -1,6 +1,6 @@
 'use server';
 
-import { addDoc, collection } from 'firebase/firestore';
+import { addDoc, collection, doc, getDocs, query, where, updateDoc, serverTimestamp, getDoc, orderBy, limit } from 'firebase/firestore';
 import {
   answerQuestionsAboutDocument,
   AnswerQuestionsAboutDocumentInput,
@@ -15,14 +15,17 @@ import {
 } from '@/ai/flows/generate-suggested-questions';
 import { db } from '@/lib/firebase';
 import { z } from 'zod';
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
 import { app } from '@/lib/firebase';
+import { revalidatePath } from 'next/cache';
 
 const auth = getAuth(app);
 
 const askQuestionSchema = z.object({
   documentText: z.string().min(1, { message: 'Document text cannot be empty.' }),
   question: z.string().min(1, { message: 'Question cannot be empty.' }),
+  chatId: z.string(),
+  isLoggedIn: z.string(),
 });
 
 export async function askQuestionAction(
@@ -33,6 +36,8 @@ export async function askQuestionAction(
     const validatedData = askQuestionSchema.safeParse({
       documentText: formData.get('documentText'),
       question: formData.get('question'),
+      chatId: formData.get('chatId'),
+      isLoggedIn: formData.get('isLoggedIn'),
     });
     
     if (!validatedData.success) {
@@ -43,7 +48,7 @@ export async function askQuestionAction(
       };
     }
     
-    const { documentText, question } = validatedData.data;
+    const { documentText, question, chatId, isLoggedIn } = validatedData.data;
 
     const answerInput: AnswerQuestionsAboutDocumentInput = {
       documentText,
@@ -56,6 +61,21 @@ export async function askQuestionAction(
       previousQuestion: question,
     };
     const { suggestedQuestions } = await generateSuggestedQuestions(suggestionsInput);
+
+    if (isLoggedIn === 'true') {
+        const chatRef = doc(db, 'chats', chatId);
+        const messagesCollection = collection(chatRef, 'messages');
+        await addDoc(messagesCollection, {
+            role: 'user',
+            content: question,
+            createdAt: serverTimestamp(),
+        });
+        await addDoc(messagesCollection, {
+            role: 'assistant',
+            content: answer,
+            createdAt: serverTimestamp(),
+        });
+    }
 
     return { answer, suggestedQuestions: suggestedQuestions.slice(0, 3), error: null };
   } catch (error) {
@@ -156,5 +176,80 @@ export async function loginAction(prevState: any, formData: FormData) {
         return { success: true };
     } catch (error: any) {
         return { error: { _errors: [error.message] } };
+    }
+}
+
+
+const newChatSchema = z.object({
+    title: z.string().min(1, { message: 'Title is required.' }),
+    description: z.string().min(1, { message: 'Description is required.' }),
+    documentText: z.string(),
+    userId: z.string(),
+});
+
+export async function createNewChat(prevState: any, formData: FormData) {
+    try {
+        const validatedData = newChatSchema.safeParse(Object.fromEntries(formData));
+        if (!validatedData.success) {
+            return { error: validatedData.error.flatten().fieldErrors };
+        }
+
+        const { title, description, documentText, userId } = validatedData.data;
+
+        const chatRef = await addDoc(collection(db, 'chats'), {
+            userId,
+            title,
+            description,
+            documentText,
+            createdAt: serverTimestamp(),
+        });
+        
+        const welcomeMessage = {
+            role: 'assistant',
+            content: 'Document loaded. What would you like to know?',
+            createdAt: serverTimestamp(),
+        };
+
+        if (documentText) {
+            await addDoc(collection(chatRef, 'messages'), welcomeMessage);
+        }
+
+        const newChat = await getDoc(chatRef);
+        const chatData = newChat.data();
+        
+        revalidatePath('/app');
+        return { 
+            success: true, 
+            chat: {
+                id: newChat.id,
+                ...chatData,
+                messages: documentText ? [ {id: '0', ...welcomeMessage} ] : []
+            } 
+        };
+
+    } catch (error: any) {
+        return { error: { _errors: [error.message] } };
+    }
+}
+
+export async function getChatsForUser(userId: string) {
+    const chatsQuery = query(collection(db, 'chats'), where('userId', '==', userId), orderBy('createdAt', 'desc'));
+    const querySnapshot = await getDocs(chatsQuery);
+    const chats = await Promise.all(querySnapshot.docs.map(async (doc) => {
+        const messagesQuery = query(collection(doc.ref, 'messages'), orderBy('createdAt', 'asc'));
+        const messagesSnapshot = await getDocs(messagesQuery);
+        const messages = messagesSnapshot.docs.map(msgDoc => ({ id: msgDoc.id, ...msgDoc.data() }));
+        return { id: doc.id, ...doc.data(), messages };
+    }));
+    return chats;
+}
+
+export async function updateDocumentAction(chatId: string, documentText: string) {
+    try {
+        const chatRef = doc(db, 'chats', chatId);
+        await updateDoc(chatRef, { documentText });
+        return { success: true };
+    } catch (error: any) {
+        return { error: error.message };
     }
 }

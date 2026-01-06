@@ -13,14 +13,16 @@ import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '@/componen
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface ChatProps {
+  chatId: string;
   documentText: string;
   messages: ChatMessage[];
   setMessages: (messages: ChatMessage[]) => void;
   setSuggestedQuestions: (questions: SuggestedQuestion[]) => void;
   suggestedQuestions: SuggestedQuestion[];
+  isLoggedIn: boolean;
 }
 
-function ChatInputForm({ documentText, question, setQuestion }: { documentText: string, question: string, setQuestion: (q: string) => void}) {
+function ChatInputForm({ documentText, question, setQuestion, chatId, isLoggedIn }: { documentText: string, question: string, setQuestion: (q: string) => void, chatId: string, isLoggedIn: boolean}) {
   const { pending } = useFormStatus();
 
   return (
@@ -34,7 +36,9 @@ function ChatInputForm({ documentText, question, setQuestion }: { documentText: 
         autoComplete="off"
       />
       <input type="hidden" name="documentText" value={documentText} />
-      <Button type="submit" size="icon" disabled={!documentText || pending}>
+      <input type="hidden" name="chatId" value={chatId} />
+      <input type="hidden" name="isLoggedIn" value={String(isLoggedIn)} />
+      <Button type="submit" size="icon" disabled={!documentText || pending || !question.trim()}>
         {pending ? (
           <Loader2 className="h-5 w-5 animate-spin" />
         ) : (
@@ -89,11 +93,13 @@ function ChatBubble({ message }: { message: ChatMessage }) {
 }
 
 export function Chat({
+  chatId,
   documentText,
   messages,
   setMessages,
   suggestedQuestions,
   setSuggestedQuestions,
+  isLoggedIn,
 }: ChatProps) {
   const [question, setQuestion] = useState('');
   const scrollAreaRef = useRef<HTMLDivElement>(null);
@@ -155,6 +161,9 @@ export function Chat({
     const formData = new FormData();
     formData.append('question', sq);
     formData.append('documentText', documentText);
+    formData.append('chatId', chatId);
+    formData.append('isLoggedIn', String(isLoggedIn));
+
     
     setMessages((prev) => [
       ...prev,
@@ -203,7 +212,7 @@ export function Chat({
           action={handleFormSubmit}
           className="w-full"
         >
-          <ChatInputForm documentText={documentText} question={question} setQuestion={setQuestion} />
+          <ChatInputForm documentText={documentText} question={question} setQuestion={setQuestion} chatId={chatId} isLoggedIn={isLoggedIn} />
         </form>
       </CardFooter>
     </Card>

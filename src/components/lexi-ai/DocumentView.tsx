@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Loader2, Upload } from "lucide-react";
-import { extractTextAction } from "@/lib/actions";
+import { extractTextAction, updateDocumentAction } from "@/lib/actions";
 import { useToast } from "@/hooks/use-toast";
 
 interface DocumentViewProps {
@@ -12,21 +12,39 @@ interface DocumentViewProps {
   setDocumentText: (text: string) => void;
   isExtracting: boolean;
   setIsExtracting: Dispatch<SetStateAction<boolean>>;
+  chatId?: string;
+  isDocMutable: boolean;
 }
 
-export function DocumentView({ documentText, setDocumentText, isExtracting, setIsExtracting }: DocumentViewProps) {
+export function DocumentView({ 
+  documentText, 
+  setDocumentText, 
+  isExtracting, 
+  setIsExtracting,
+  chatId,
+  isDocMutable
+}: DocumentViewProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  const handleTextChange = async (newText: string) => {
+    setDocumentText(newText);
+    if (chatId && !isDocMutable) {
+      await updateDocumentAction(chatId, newText);
+    }
+  }
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      setIsExtracting(true);
       const fileExtension = file.name.split('.').pop()?.toLowerCase();
       
+      let newText = '';
+
       if (fileExtension === 'txt' || fileExtension === 'md') {
         try {
-          const text = await file.text();
-          setDocumentText(text);
+          newText = await file.text();
         } catch (error) {
           console.error("Error reading file:", error);
           toast({
@@ -34,9 +52,10 @@ export function DocumentView({ documentText, setDocumentText, isExtracting, setI
             title: "Error reading file",
             description: "Could not read the text from the uploaded file.",
           });
+          setIsExtracting(false);
+          return;
         }
       } else {
-        setIsExtracting(true);
         const reader = new FileReader();
         reader.onload = async (e) => {
           const dataUrl = e.target?.result as string;
@@ -46,7 +65,7 @@ export function DocumentView({ documentText, setDocumentText, isExtracting, setI
           const result = await extractTextAction(null, formData);
           
           if(result.extractedText) {
-            setDocumentText(result.extractedText);
+            handleTextChange(result.extractedText);
           } else if (result.error) {
             toast({
                 variant: "destructive",
@@ -65,7 +84,11 @@ export function DocumentView({ documentText, setDocumentText, isExtracting, setI
           setIsExtracting(false);
         };
         reader.readAsDataURL(file);
+        return; // Return early as reader is async
       }
+
+      handleTextChange(newText);
+      setIsExtracting(false);
     }
   };
 
@@ -82,31 +105,35 @@ export function DocumentView({ documentText, setDocumentText, isExtracting, setI
             Paste or upload a .txt, .md, .pdf, .png, .jpeg, or .doc file.
           </CardDescription>
         </div>
-        <input
-          type="file"
-          ref={fileInputRef}
-          onChange={handleFileChange}
-          className="hidden"
-          accept=".txt,.md,.pdf,.png,.jpeg,.jpg,.doc"
-          disabled={isExtracting}
-        />
-        <Button variant="outline" onClick={handleUploadClick} disabled={isExtracting}>
-          {isExtracting ? (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          ) : (
-            <Upload className="mr-2 h-4 w-4" />
-          )}
-          {isExtracting ? 'Processing...' : 'Upload Document'}
-        </Button>
+        {isDocMutable && (
+          <>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              className="hidden"
+              accept=".txt,.md,.pdf,.png,.jpeg,.jpg,.doc"
+              disabled={isExtracting}
+            />
+            <Button variant="outline" onClick={handleUploadClick} disabled={isExtracting}>
+              {isExtracting ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Upload className="mr-2 h-4 w-4" />
+              )}
+              {isExtracting ? 'Processing...' : 'Upload Document'}
+            </Button>
+          </>
+        )}
       </CardHeader>
       <CardContent className="flex-grow">
         <Textarea
-          placeholder="Paste your document text here or upload a file..."
+          placeholder="Paste your document text here or upload a file to get started..."
           value={documentText}
-          onChange={(e) => setDocumentText(e.target.value)}
+          onChange={(e) => isDocMutable && handleTextChange(e.target.value)}
           className="h-full min-h-[400px] lg:min-h-0 resize-none font-code text-sm"
           aria-label="Document text"
-          disabled={isExtracting}
+          disabled={isExtracting || !isDocMutable}
         />
       </CardContent>
     </Card>
