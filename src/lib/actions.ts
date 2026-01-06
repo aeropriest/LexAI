@@ -15,6 +15,10 @@ import {
 } from '@/ai/flows/generate-suggested-questions';
 import { db } from '@/lib/firebase';
 import { z } from 'zod';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { app } from '@/lib/firebase';
+
+const auth = getAuth(app);
 
 const askQuestionSchema = z.object({
   documentText: z.string().min(1, { message: 'Document text cannot be empty.' }),
@@ -100,38 +104,57 @@ export async function extractTextAction(
   }
 }
 
-const saveUserSchema = z.object({
-    name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
+const signUpSchema = z.object({
+    firstName: z.string().min(1, { message: 'First name is required.' }),
+    lastName: z.string().min(1, { message: 'Last name is required.' }),
     email: z.string().email({ message: 'Please enter a valid email address.' }),
+    password: z.string().min(6, { message: 'Password must be at least 6 characters.' }),
 });
 
-export async function saveUserAction(prevState: any, formData: FormData) {
+export async function signUpAction(prevState: any, formData: FormData) {
     try {
-        const validatedData = saveUserSchema.safeParse({
-            name: formData.get('name'),
-            email: formData.get('email'),
-        });
+        const validatedData = signUpSchema.safeParse(Object.fromEntries(formData));
 
         if (!validatedData.success) {
-            return {
-                error: validatedData.error.errors.map((e) => e.message).join(' '),
-            };
+            return { error: validatedData.error.flatten().fieldErrors };
         }
 
-        const { name, email } = validatedData.data;
+        const { email, password, firstName, lastName } = validatedData.data;
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
 
         await addDoc(collection(db, 'users'), {
-            name,
+            uid: user.uid,
+            firstName,
+            lastName,
             email,
             createdAt: new Date(),
         });
 
-        return { error: null };
-    } catch (error) {
-        console.error(error);
-        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
-        return {
-            error: `Failed to save user data. Details: ${errorMessage}`,
-        };
+        return { success: true };
+    } catch (error: any) {
+        return { error: { _errors: [error.message] } };
+    }
+}
+
+const loginSchema = z.object({
+    email: z.string().email({ message: 'Please enter a valid email address.' }),
+    password: z.string().min(1, { message: 'Password is required.' }),
+});
+
+export async function loginAction(prevState: any, formData: FormData) {
+    try {
+        const validatedData = loginSchema.safeParse(Object.fromEntries(formData));
+
+        if (!validatedData.success) {
+            return { error: validatedData.error.flatten().fieldErrors };
+        }
+
+        const { email, password } = validatedData.data;
+        await signInWithEmailAndPassword(auth, email, password);
+
+        return { success: true };
+    } catch (error: any) {
+        return { error: { _errors: [error.message] } };
     }
 }

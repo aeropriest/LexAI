@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Header } from '@/components/lexi-ai/Header';
 import { DocumentView } from '@/components/lexi-ai/DocumentView';
 import { Chat } from '@/components/lexi-ai/Chat';
+import { AuthDialog } from '@/components/lexi-ai/AuthDialog';
 import { Toaster } from "@/components/ui/toaster";
 import type { ChatMessage, SuggestedQuestion } from '@/lib/types';
 
@@ -12,6 +13,19 @@ export default function Home() {
   const [isExtracting, setIsExtracting] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [suggestedQuestions, setSuggestedQuestions] = useState<SuggestedQuestion[]>([]);
+  const [questionCount, setQuestionCount] = useState(0);
+  const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
+
+  useEffect(() => {
+    const userMessages = messages.filter(m => m.role === 'user').length;
+    setQuestionCount(userMessages);
+  }, [messages]);
+
+  useEffect(() => {
+    if (questionCount >= 3) {
+      setIsAuthDialogOpen(true);
+    }
+  }, [questionCount]);
 
   // Reset chat if document changes
   const handleSetDocumentText = (text: string) => {
@@ -25,6 +39,13 @@ export default function Home() {
       setMessages([]);
     }
     setSuggestedQuestions([]);
+    setQuestionCount(0);
+  };
+
+  const handleAuthSuccess = () => {
+    setIsAuthDialogOpen(false);
+    // Potentially reset question count or give user more questions
+    setQuestionCount(0); 
   };
 
   return (
@@ -48,6 +69,11 @@ export default function Home() {
         </div>
       </main>
       <Toaster />
+      <AuthDialog
+        isOpen={isAuthDialogOpen}
+        onOpenChange={setIsAuthDialogOpen}
+        onSuccess={handleAuthSuccess}
+      />
     </div>
   );
 }

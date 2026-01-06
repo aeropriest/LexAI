@@ -1,18 +1,10 @@
 'use client';
 
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { UserCaptureDialog } from '@/components/lexi-ai/UserCaptureDialog';
 import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
 
 export default function LandingPage() {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const router = useRouter();
-
-  const handleSuccess = () => {
-    setIsDialogOpen(false);
-    router.push('/app');
-  };
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground font-body antialiased">
@@ -48,19 +40,13 @@ export default function LandingPage() {
         <p className="text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
           LexiAI is an AI-powered assistant that helps you analyze, understand, and extract key information from complex legal texts in seconds.
         </p>
-        <Button size="lg" onClick={() => setIsDialogOpen(true)}>
+        <Button size="lg" onClick={() => router.push('/app')}>
           Try Now
         </Button>
       </main>
       <footer className="p-4 border-t bg-card text-center text-sm text-muted-foreground">
         © {new Date().getFullYear()} LexiAI. All rights reserved.
       </footer>
-
-      <UserCaptureDialog
-        isOpen={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
-        onSuccess={handleSuccess}
-      />
     </div>
   );
 }
