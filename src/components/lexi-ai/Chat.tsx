@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useActionState } from 'react';
 import { Bot, User, Send, FileWarning, Lightbulb, Loader2 } from 'lucide-react';
-import { useFormState, useFormStatus } from 'react-dom';
+import { useFormStatus } from 'react-dom';
 import { askQuestionAction } from '@/lib/actions';
 import type { ChatMessage, SuggestedQuestion } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -107,7 +107,7 @@ export function Chat({
   const documentRequired = documentText !== null;
 
 
-  const [state, formAction] = useFormState(askQuestionAction, {
+  const [state, formAction] = useActionState(askQuestionAction, {
     answer: null,
     suggestedQuestions: [],
     error: null,

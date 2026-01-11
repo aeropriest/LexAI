@@ -10,12 +10,13 @@ import type { ChatMessage, SuggestedQuestion } from '@/lib/types';
 import { Sidebar, SidebarProvider, SidebarInset, SidebarTrigger, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { getAuth, onAuthStateChanged, User } from 'firebase/auth';
 import { app } from '@/lib/firebase';
-import { getChatsForUser, askQuestionAction } from '@/lib/actions';
+import { getChatsForUser, askQuestionAction, createNewChat } from '@/lib/actions';
 import { PlusCircle, MessageSquare, Scale, Pencil, Search, ArrowRight } from 'lucide-react';
 import { NewChatDialog } from '@/components/lexi-ai/NewChatDialog';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { AppLogo } from '@/components/icons';
+import { useToast } from '@/hooks/use-toast';
 
 const auth = getAuth(app);
 
@@ -57,33 +58,43 @@ export default function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [userChats, setUserChats] = useState<any[]>([]);
   const [isNewChatDialogOpen, setIsNewChatDialogOpen] = useState(false);
-  const [currentMode, setCurrentMode] = useState<AppMode | null>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
         fetchUserChats(currentUser.uid);
+        setIsAuthDialogOpen(false); // Close auth dialog if it was open
       } else {
+        // Reset state for guest user
         setUserChats([]);
         setActiveChat(null);
-        setCurrentMode(null);
+        setQuestionCount(0);
       }
     });
     return () => unsubscribe();
   }, []);
-
+  
   const fetchUserChats = async (userId: string) => {
-    const chats = await getChatsForUser(userId);
-    setUserChats(chats);
-    if (chats.length > 0) {
-      handleSelectChat(chats[0]);
-    } else {
-      setActiveChat(null);
-      setCurrentMode(null);
+    try {
+      const chats = await getChatsForUser(userId);
+      setUserChats(chats);
+      if (chats.length > 0) {
+        handleSelectChat(chats[0]);
+      } else {
+        setActiveChat(null);
+      }
+    } catch (error) {
+      console.error("Failed to fetch user chats:", error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Could not load your chats. Please try again later.'
+      });
     }
   };
-  
+
   const handleSelectChat = (chat: any) => {
     setActiveChat({
       id: chat.id,
@@ -93,31 +104,54 @@ export default function Home() {
       messages: chat.messages || [],
       mode: chat.mode || 'review'
     });
-    setCurrentMode(chat.mode || 'review');
     setQuestionCount(0);
     setSuggestedQuestions([]);
   };
 
-  const startNewChat = useCallback((mode: AppMode) => {
-    setCurrentMode(mode);
-    const newChatId = String(Date.now());
-    let welcomeMessageContent = 'What would you like to know?';
-    if(mode === 'write') welcomeMessageContent = "How can I help you with your contract?";
-    if(mode === 'research') welcomeMessageContent = "What legal topic can I help you research?";
+  const handleNewChat = useCallback(async (mode: AppMode) => {
+      const title = `New ${mode.charAt(0).toUpperCase() + mode.slice(1)} Chat`;
+      const description = `A new chat session for ${mode}`;
+      
+      let welcomeMessageContent = 'What would you like to know?';
+      if(mode === 'write') welcomeMessageContent = "How can I help you with your contract?";
+      if(mode === 'research') welcomeMessageContent = "What legal topic can I help you research?";
 
-    const welcomeMessage = { id: `${newChatId}-0`, role: 'assistant' as const, content: welcomeMessageContent };
+      const welcomeMessage = { id: `${Date.now()}-0`, role: 'assistant' as const, content: welcomeMessageContent };
+      
+      if (user) {
+        // Create a new chat in the database for logged-in users
+        const formData = new FormData();
+        formData.append('title', title);
+        formData.append('description', description);
+        formData.append('documentText', '');
+        formData.append('userId', user.uid);
+        formData.append('mode', mode);
 
-    setActiveChat({
-      id: newChatId,
-      title: `New ${mode.charAt(0).toUpperCase() + mode.slice(1)} Chat`,
-      description: `A new chat session for ${mode}`,
-      documentText: '',
-      messages: [welcomeMessage],
-      mode: mode,
-    });
-    setSuggestedQuestions([]);
-    setQuestionCount(0);
-  }, []);
+        const result = await createNewChat(null, formData);
+        if (result.success && result.chat) {
+          await fetchUserChats(user.uid);
+          handleSelectChat(result.chat);
+        } else {
+          toast({
+              variant: 'destructive',
+              title: 'Error',
+              description: 'Failed to create a new chat.',
+          });
+        }
+      } else {
+        // Create a temporary local chat for guest users
+        setActiveChat({
+            id: String(Date.now()),
+            title: title,
+            description: description,
+            documentText: '',
+            messages: [welcomeMessage],
+            mode: mode,
+        });
+      }
+      setSuggestedQuestions([]);
+      setQuestionCount(0);
+  }, [user, toast]);
 
   const handleNewChatCreated = async (newChat: any) => {
     if (user) {
@@ -126,14 +160,16 @@ export default function Home() {
     }
   }
 
-
-  useEffect(() => {
-    if (!user) {
-        const userMessages = activeChat?.messages.filter(m => m.role === 'user').length || 0;
-        setQuestionCount(userMessages);
+  const handleMessagesUpdate = (newMessages: ChatMessage[]) => {
+    if (activeChat) {
+      setActiveChat(prev => prev ? {...prev, messages: newMessages} : null);
+      if (!user) {
+        const userMessagesCount = newMessages.filter(m => m.role === 'user').length;
+        setQuestionCount(userMessagesCount);
+      }
     }
-  }, [activeChat?.messages, user]);
-
+  };
+  
   useEffect(() => {
     if (!user && questionCount >= 3) {
       setIsAuthDialogOpen(true);
@@ -146,71 +182,81 @@ export default function Home() {
     }
   };
 
-  const setMessages = (messages: ChatMessage[]) => {
-    if (activeChat) {
-        setActiveChat(prev => prev ? {...prev, messages} : null);
-    }
-  }
-
   const handleAuthSuccess = () => {
     setIsAuthDialogOpen(false);
-    setQuestionCount(0); 
-    if(auth.currentUser){
-        fetchUserChats(auth.currentUser.uid);
-    }
+    // User state will be updated by onAuthStateChanged, which triggers chat fetching.
   };
   
-  const handleOpenNewChatDialog = () => {
-    if (user) {
-        setIsNewChatDialogOpen(true);
-    } else {
-        startNewChat('review');
-    }
-  }
+  const handleOpenNewChatDialog = () => setIsNewChatDialogOpen(true);
 
-  const handlePromptClick = (prompt: string) => {
-    if (!activeChat) return;
-    
-    const formData = new FormData();
-    formData.append('question', prompt);
-    formData.append('documentText', activeChat.documentText);
-    formData.append('chatId', activeChat.id);
-    formData.append('isLoggedIn', String(!!user));
-    
-    setMessages([
-        ...activeChat.messages,
-        { id: String(Date.now()), role: 'user', content: prompt },
-    ]);
-    
-    askQuestionAction(null, formData).then(state => {
-        if (state.answer) {
-            setMessages([
-                ...activeChat.messages,
-                { id: String(Date.now()), role: 'user', content: prompt },
-                { id: String(Date.now() + 1), role: 'assistant', content: state.answer },
-            ]);
-            setSuggestedQuestions(state.suggestedQuestions || []);
-        } else if (state.error) {
-            setMessages([
-                 ...activeChat.messages,
-                { id: String(Date.now()), role: 'user', content: prompt },
-                {
-                    id: String(Date.now() + 1),
-                    role: 'assistant',
-                    content: state.error,
-                },
-            ]);
-            setSuggestedQuestions([]);
+  const handlePromptClick = (prompt: string, mode: AppMode) => {
+      const performAskQuestion = async () => {
+        if (!activeChat) return;
+
+        const newMessages: ChatMessage[] = [
+          ...activeChat.messages,
+          { id: String(Date.now()), role: 'user', content: prompt },
+        ];
+        handleMessagesUpdate(newMessages);
+
+        const formData = new FormData();
+        formData.append('question', prompt);
+        formData.append('documentText', activeChat.documentText);
+        formData.append('chatId', activeChat.id);
+        formData.append('isLoggedIn', String(!!user));
+        
+        try {
+          const state = await askQuestionAction(null, formData);
+          
+          if (state.answer) {
+              const finalMessages = [
+                  ...newMessages,
+                  { id: String(Date.now() + 1), role: 'assistant', content: state.answer },
+              ];
+              handleMessagesUpdate(finalMessages);
+              setSuggestedQuestions(state.suggestedQuestions || []);
+          } else if (state.error) {
+              const finalMessages = [
+                   ...newMessages,
+                  {
+                      id: String(Date.now() + 1),
+                      role: 'assistant',
+                      content: `Error: ${state.error}`,
+                  },
+              ];
+              handleMessagesUpdate(finalMessages);
+              setSuggestedQuestions([]);
+          }
+        } catch (e) {
+            const finalMessages = [
+               ...newMessages,
+              {
+                  id: String(Date.now() + 1),
+                  role: 'assistant',
+                  content: 'An unexpected error occurred.',
+              },
+          ];
+          handleMessagesUpdate(finalMessages);
+          setSuggestedQuestions([]);
         }
-    });
+      };
+
+      if (!activeChat || activeChat.mode !== mode) {
+        handleNewChat(mode).then(() => {
+          // Using setTimeout to ensure state update completes before asking question
+          setTimeout(performAskQuestion, 100);
+        });
+      } else {
+        performAskQuestion();
+      }
   }
 
   const MainContent = () => {
     if (!activeChat) {
-        return <InitialView onSelectMode={startNewChat} onPromptClick={handlePromptClick} />;
+        return <InitialView onSelectMode={handleNewChat} onPromptClick={handlePromptClick} />;
     }
 
-    switch(currentMode) {
+    switch(activeChat.mode) {
         case 'review':
             return (
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 h-full">
@@ -226,7 +272,7 @@ export default function Home() {
                         chatId={activeChat.id}
                         documentText={activeChat.documentText}
                         messages={activeChat.messages}
-                        setMessages={setMessages}
+                        setMessages={handleMessagesUpdate}
                         suggestedQuestions={suggestedQuestions}
                         setSuggestedQuestions={setSuggestedQuestions}
                         isLoggedIn={!!user}
@@ -250,7 +296,7 @@ export default function Home() {
                         chatId={activeChat.id}
                         documentText={activeChat.documentText}
                         messages={activeChat.messages}
-                        setMessages={setMessages}
+                        setMessages={handleMessagesUpdate}
                         suggestedQuestions={suggestedQuestions}
                         setSuggestedQuestions={setSuggestedQuestions}
                         isLoggedIn={!!user}
@@ -264,7 +310,7 @@ export default function Home() {
                         chatId={activeChat.id}
                         documentText={""} // No document for research
                         messages={activeChat.messages}
-                        setMessages={setMessages}
+                        setMessages={handleMessagesUpdate}
                         suggestedQuestions={suggestedQuestions}
                         setSuggestedQuestions={setSuggestedQuestions}
                         isLoggedIn={!!user}
@@ -272,7 +318,7 @@ export default function Home() {
                 </div>
             );
         default:
-            return <InitialView onSelectMode={startNewChat} onPromptClick={handlePromptClick} />;
+            return <InitialView onSelectMode={handleNewChat} onPromptClick={handlePromptClick} />;
     }
   }
 
@@ -280,7 +326,9 @@ export default function Home() {
   return (
     <SidebarProvider>
       <div className="flex flex-col h-screen bg-background text-foreground font-body antialiased">
-        {user && <Header><SidebarTrigger /></Header>}
+        <Header>
+            {user && <SidebarTrigger />}
+        </Header>
         <main className="flex-1 flex overflow-hidden">
           {user && (
             <Sidebar>
@@ -288,7 +336,7 @@ export default function Home() {
                     <SidebarHeader>
                         <SidebarMenu>
                              <SidebarMenuItem>
-                                <SidebarMenuButton onClick={() => { setActiveChat(null); setCurrentMode(null); }}>
+                                <SidebarMenuButton onClick={handleOpenNewChatDialog}>
                                     <PlusCircle />
                                     New Chat
                                 </SidebarMenuButton>
@@ -331,13 +379,7 @@ export default function Home() {
   );
 }
 
-const InitialView = ({ onSelectMode, onPromptClick }: { onSelectMode: (mode: AppMode) => void, onPromptClick: (prompt: string) => void }) => {
-    const handlePrompt = (mode: AppMode, prompt: string) => {
-        onSelectMode(mode);
-        // We need a small delay for the activeChat to be set
-        setTimeout(() => onPromptClick(prompt), 100);
-    }
-    
+const InitialView = ({ onSelectMode, onPromptClick }: { onSelectMode: (mode: AppMode) => void, onPromptClick: (prompt: string, mode: AppMode) => void }) => {
     return (
         <div className="w-full max-w-4xl mx-auto flex flex-col items-center justify-center h-full text-foreground">
             <AppLogo className="h-12 w-12 text-primary mb-4" />
@@ -349,21 +391,21 @@ const InitialView = ({ onSelectMode, onPromptClick }: { onSelectMode: (mode: App
                     title="Review Document" 
                     prompts={samplePrompts.review} 
                     onSelect={() => onSelectMode('review')}
-                    onPromptClick={(prompt) => handlePrompt('review', prompt)}
+                    onPromptClick={(prompt) => onPromptClick(prompt, 'review')}
                 />
                 <ModeCard 
                     icon={<Pencil />} 
                     title="Write Contract" 
                     prompts={samplePrompts.write}
                     onSelect={() => onSelectMode('write')}
-                    onPromptClick={(prompt) => handlePrompt('write', prompt)}
+                    onPromptClick={(prompt) => onPromptClick(prompt, 'write')}
                 />
                 <ModeCard 
                     icon={<Search />} 
                     title="Legal Research" 
                     prompts={samplePrompts.research}
                     onSelect={() => onSelectMode('research')}
-                    onPromptClick={(prompt) => handlePrompt('research', prompt)}
+                    onPromptClick={(prompt) => onPromptClick(prompt, 'research')}
                 />
             </div>
         </div>
@@ -382,8 +424,8 @@ const ModeCard = ({ icon, title, prompts, onSelect, onPromptClick }: { icon: Rea
             <div className="flex flex-col gap-2 flex-1 justify-end">
                 {prompts.map((prompt, i) => (
                     <Button key={i} variant="ghost" className="text-sm h-auto text-left justify-between text-muted-foreground hover:text-foreground" onClick={() => onPromptClick(prompt)}>
-                        {prompt}
-                        <ArrowRight className="h-4 w-4 ml-2 opacity-50"/>
+                        <span>{prompt}</span>
+                        <ArrowRight className="h-4 w-4 ml-2 opacity-50 flex-shrink-0"/>
                     </Button>
                 ))}
             </div>

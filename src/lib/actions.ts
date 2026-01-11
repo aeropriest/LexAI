@@ -1,6 +1,6 @@
 'use server';
 
-import { addDoc, collection, doc, getDocs, query, where, updateDoc, serverTimestamp, getDoc, orderBy, limit } from 'firebase/firestore';
+import { addDoc, collection, doc, getDocs, query, where, updateDoc, serverTimestamp, getDoc, orderBy } from 'firebase/firestore';
 import {
   answerQuestionsAboutDocument,
   AnswerQuestionsAboutDocumentInput,
@@ -22,7 +22,7 @@ import { revalidatePath } from 'next/cache';
 const auth = getAuth(app);
 
 const askQuestionSchema = z.object({
-  documentText: z.string().min(1, { message: 'Document text cannot be empty.' }),
+  documentText: z.string().min(1, { message: 'Document text cannot be empty.' }).optional().or(z.literal('')),
   question: z.string().min(1, { message: 'Question cannot be empty.' }),
   chatId: z.string(),
   isLoggedIn: z.string(),
@@ -50,31 +50,37 @@ export async function askQuestionAction(
     
     const { documentText, question, chatId, isLoggedIn } = validatedData.data;
 
+    // For research mode, documentText can be empty.
     const answerInput: AnswerQuestionsAboutDocumentInput = {
-      documentText,
+      documentText: documentText || "N/A",
       question,
     };
     const { answer } = await answerQuestionsAboutDocument(answerInput);
 
     const suggestionsInput: GenerateSuggestedQuestionsInput = {
-      documentContent: documentText,
+      documentContent: documentText || "N/A",
       previousQuestion: question,
     };
     const { suggestedQuestions } = await generateSuggestedQuestions(suggestionsInput);
 
-    if (isLoggedIn === 'true') {
-        const chatRef = doc(db, 'chats', chatId);
-        const messagesCollection = collection(chatRef, 'messages');
-        await addDoc(messagesCollection, {
-            role: 'user',
-            content: question,
-            createdAt: serverTimestamp(),
-        });
-        await addDoc(messagesCollection, {
-            role: 'assistant',
-            content: answer,
-            createdAt: serverTimestamp(),
-        });
+    if (isLoggedIn === 'true' && chatId) {
+        try {
+            const chatRef = doc(db, 'chats', chatId);
+            const messagesCollection = collection(chatRef, 'messages');
+            await addDoc(messagesCollection, {
+                role: 'user',
+                content: question,
+                createdAt: serverTimestamp(),
+            });
+            await addDoc(messagesCollection, {
+                role: 'assistant',
+                content: answer,
+                createdAt: serverTimestamp(),
+            });
+        } catch (dbError) {
+            console.error("Firestore update failed:", dbError);
+            // Decide if you want to fail the whole action or just log the error
+        }
     }
 
     return { answer, suggestedQuestions: suggestedQuestions.slice(0, 3), error: null };
@@ -182,9 +188,10 @@ export async function loginAction(prevState: any, formData: FormData) {
 
 const newChatSchema = z.object({
     title: z.string().min(1, { message: 'Title is required.' }),
-    description: z.string().min(1, { message: 'Description is required.' }),
-    documentText: z.string(),
+    description: z.string().optional(),
+    documentText: z.string().optional(),
     userId: z.string(),
+    mode: z.enum(['review', 'write', 'research']),
 });
 
 export async function createNewChat(prevState: any, formData: FormData) {
@@ -194,24 +201,29 @@ export async function createNewChat(prevState: any, formData: FormData) {
             return { error: validatedData.error.flatten().fieldErrors };
         }
 
-        const { title, description, documentText, userId } = validatedData.data;
+        const { title, description, documentText, userId, mode } = validatedData.data;
 
         const chatRef = await addDoc(collection(db, 'chats'), {
             userId,
             title,
-            description,
-            documentText,
+            description: description || '',
+            documentText: documentText || '',
             createdAt: serverTimestamp(),
+            mode,
         });
         
+        let welcomeMessageContent = 'Document loaded. What would you like to know?';
+        if (mode === 'write') welcomeMessageContent = 'How can I help you with your contract?';
+        if (mode === 'research') welcomeMessageContent = 'What legal topic can I help you research?';
+
         const welcomeMessage = {
             role: 'assistant',
-            content: 'Document loaded. What would you like to know?',
+            content: welcomeMessageContent,
             createdAt: serverTimestamp(),
         };
 
-        if (documentText) {
-            await addDoc(collection(chatRef, 'messages'), welcomeMessage);
+        if (documentText || mode !== 'review') {
+             await addDoc(collection(chatRef, 'messages'), welcomeMessage);
         }
 
         const newChat = await getDoc(chatRef);
@@ -223,11 +235,12 @@ export async function createNewChat(prevState: any, formData: FormData) {
             chat: {
                 id: newChat.id,
                 ...chatData,
-                messages: documentText ? [ {id: '0', ...welcomeMessage} ] : []
+                messages: (documentText || mode !== 'review') ? [ {id: '0', ...welcomeMessage} ] : []
             } 
         };
 
     } catch (error: any) {
+        console.error("Create chat error:", error);
         return { error: { _errors: [error.message] } };
     }
 }

@@ -26,12 +26,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { createNewChat } from '@/lib/actions';
 import { useToast } from '@/hooks/use-toast';
 import { getAuth } from 'firebase/auth';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Scale, Pencil, Search } from 'lucide-react';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 const newChatSchema = z.object({
   title: z.string().min(1, { message: 'Title cannot be empty.' }),
   description: z.string().optional(),
   documentText: z.string().optional(),
+  mode: z.enum(['review', 'write', 'research'], {
+    required_error: "You need to select a chat mode.",
+  }),
 });
 
 interface NewChatDialogProps {
@@ -49,7 +53,7 @@ export function NewChatDialog({ isOpen, onOpenChange, onSuccess }: NewChatDialog
 
   const form = useForm<z.infer<typeof newChatSchema>>({
     resolver: zodResolver(newChatSchema),
-    defaultValues: { title: '', description: '', documentText: '' },
+    defaultValues: { title: '', description: '', documentText: '', mode: 'review' },
   });
 
   useEffect(() => {
@@ -84,13 +88,14 @@ export function NewChatDialog({ isOpen, onOpenChange, onSuccess }: NewChatDialog
     formData.append('description', data.description || '');
     formData.append('documentText', data.documentText || '');
     formData.append('userId', user.uid);
+    formData.append('mode', data.mode);
     formAction(formData);
   };
 
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Create New Chat</DialogTitle>
           <DialogDescription>Enter the details for your new chat session.</DialogDescription>
@@ -99,11 +104,56 @@ export function NewChatDialog({ isOpen, onOpenChange, onSuccess }: NewChatDialog
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4 pt-4">
             <FormField
               control={form.control}
+              name="mode"
+              render={({ field }) => (
+                <FormItem className="space-y-3">
+                  <FormLabel>Chat Mode</FormLabel>
+                  <FormControl>
+                    <RadioGroup
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                      className="grid grid-cols-3 gap-4"
+                    >
+                      <FormItem>
+                        <FormControl>
+                            <RadioGroupItem value="review" id="review" className="sr-only peer" />
+                        </FormControl>
+                        <FormLabel htmlFor="review" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                            <Scale className="mb-3 h-6 w-6" />
+                            Review
+                        </FormLabel>
+                      </FormItem>
+                       <FormItem>
+                        <FormControl>
+                            <RadioGroupItem value="write" id="write" className="sr-only peer" />
+                        </FormControl>
+                        <FormLabel htmlFor="write" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                            <Pencil className="mb-3 h-6 w-6" />
+                            Write
+                        </FormLabel>
+                      </FormItem>
+                       <FormItem>
+                        <FormControl>
+                            <RadioGroupItem value="research" id="research" className="sr-only peer" />
+                        </FormControl>
+                        <FormLabel htmlFor="research" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+                            <Search className="mb-3 h-6 w-6" />
+                            Research
+                        </FormLabel>
+                      </FormItem>
+                    </RadioGroup>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
               name="title"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Title</FormLabel>
-                  <FormControl><Input placeholder="e.g., Contract Review" {...field} /></FormControl>
+                  <FormControl><Input placeholder="e.g., NDA Review for Project X" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}
