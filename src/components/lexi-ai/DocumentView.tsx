@@ -97,13 +97,15 @@ export function DocumentView({
   };
   
   return (
-    <Card className="h-full flex flex-col">
+    <Card className="h-full flex flex-col bg-secondary/30">
       <CardHeader className="flex flex-row items-center justify-between">
         <div>
           <CardTitle>Document</CardTitle>
-          <CardDescription>
-            Paste or upload a .txt, .md, .pdf, .png, .jpeg, or .doc file.
-          </CardDescription>
+          { documentText === '' && 
+            <CardDescription>
+              Paste or upload a .txt, .md, .pdf, .png, .jpeg, or .doc file.
+            </CardDescription>
+          }
         </div>
         {isDocMutable && (
           <>
@@ -131,9 +133,9 @@ export function DocumentView({
           placeholder="Paste your document text here or upload a file to get started..."
           value={documentText}
           onChange={(e) => isDocMutable && handleTextChange(e.target.value)}
-          className="h-full min-h-[400px] lg:min-h-0 resize-none font-code text-sm"
+          className="h-full min-h-[400px] lg:min-h-0 resize-none font-code text-sm bg-background/50"
           aria-label="Document text"
-          disabled={isExtracting || !isDocMutable}
+          disabled={isExtracting || (!isDocMutable && documentText !== '')}
         />
       </CardContent>
     </Card>

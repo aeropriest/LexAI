@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState, useActionState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Bot, User, Send, FileWarning, Lightbulb, Loader2 } from 'lucide-react';
-import { useFormStatus } from 'react-dom';
+import { useFormState, useFormStatus } from 'react-dom';
 import { askQuestionAction } from '@/lib/actions';
 import type { ChatMessage, SuggestedQuestion } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -22,23 +22,24 @@ interface ChatProps {
   isLoggedIn: boolean;
 }
 
-function ChatInputForm({ documentText, question, setQuestion, chatId, isLoggedIn }: { documentText: string, question: string, setQuestion: (q: string) => void, chatId: string, isLoggedIn: boolean}) {
+function ChatInputForm({ documentText, question, setQuestion, chatId, isLoggedIn, documentRequired }: { documentText: string, question: string, setQuestion: (q: string) => void, chatId: string, isLoggedIn: boolean, documentRequired: boolean}) {
   const { pending } = useFormStatus();
 
   return (
     <div className="flex w-full items-center gap-2">
       <Input
         name="question"
-        placeholder={!documentText ? "Please add a document first" : "Ask a question..."}
+        placeholder={documentRequired && !documentText ? "Please add a document first" : "Ask a question..."}
         value={question}
         onChange={(e) => setQuestion(e.target.value)}
-        disabled={!documentText || pending}
+        disabled={(documentRequired && !documentText) || pending}
         autoComplete="off"
+        className="bg-background/50"
       />
       <input type="hidden" name="documentText" value={documentText} />
       <input type="hidden" name="chatId" value={chatId} />
       <input type="hidden" name="isLoggedIn" value={String(isLoggedIn)} />
-      <Button type="submit" size="icon" disabled={!documentText || pending || !question.trim()}>
+      <Button type="submit" size="icon" disabled={(documentRequired && !documentText) || pending || !question.trim()}>
         {pending ? (
           <Loader2 className="h-5 w-5 animate-spin" />
         ) : (
@@ -61,8 +62,8 @@ function ChatBubble({ message }: { message: ChatMessage }) {
       )}
     >
       {isAssistant && (
-        <Avatar className="h-8 w-8 border">
-          <AvatarFallback>
+        <Avatar className="h-8 w-8 border bg-secondary">
+          <AvatarFallback className="bg-transparent">
             <Bot className="h-4 w-4" />
           </AvatarFallback>
         </Avatar>
@@ -71,7 +72,7 @@ function ChatBubble({ message }: { message: ChatMessage }) {
         className={cn(
           'max-w-xl rounded-lg p-3',
           isAssistant
-            ? 'bg-card'
+            ? 'bg-secondary'
             : 'bg-primary text-primary-foreground'
         )}
       >
@@ -103,8 +104,10 @@ export function Chat({
 }: ChatProps) {
   const [question, setQuestion] = useState('');
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const documentRequired = documentText !== null;
 
-  const [state, formAction] = useActionState(askQuestionAction, {
+
+  const [state, formAction] = useFormState(askQuestionAction, {
     answer: null,
     suggestedQuestions: [],
     error: null,
@@ -175,14 +178,14 @@ export function Chat({
   }
 
   return (
-    <Card className="h-full flex flex-col">
+    <Card className="h-full flex flex-col bg-transparent border-0 shadow-none">
       <CardHeader>
         <CardTitle>Chat Assistant</CardTitle>
       </CardHeader>
       <CardContent className="flex-1 flex flex-col gap-4 overflow-hidden">
         <ScrollArea className="flex-1 pr-4" ref={scrollAreaRef}>
           <div className="space-y-6">
-            {messages.length === 0 && !documentText ? (
+            {messages.length === 0 && documentRequired && !documentText ? (
               <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full p-8">
                 <FileWarning className="h-12 w-12 mb-4" />
                 <p className="text-lg font-medium">No document loaded</p>
@@ -212,7 +215,7 @@ export function Chat({
           action={handleFormSubmit}
           className="w-full"
         >
-          <ChatInputForm documentText={documentText} question={question} setQuestion={setQuestion} chatId={chatId} isLoggedIn={isLoggedIn} />
+          <ChatInputForm documentText={documentText} question={question} setQuestion={setQuestion} chatId={chatId} isLoggedIn={isLoggedIn} documentRequired={documentRequired}/>
         </form>
       </CardFooter>
     </Card>
