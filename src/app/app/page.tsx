@@ -7,16 +7,18 @@ import { Chat } from '@/components/lexi-ai/Chat';
 import { AuthDialog } from '@/components/lexi-ai/AuthDialog';
 import { Toaster } from "@/components/ui/toaster";
 import type { ChatMessage, SuggestedQuestion } from '@/lib/types';
-import { Sidebar, SidebarProvider, SidebarInset, SidebarTrigger, SidebarContent, SidebarHeader, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
-import { getAuth, onAuthStateChanged, User } from 'firebase/auth';
+import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
+import { getAuth, onAuthStateChanged, User, signOut } from 'firebase/auth';
 import { app } from '@/lib/firebase';
 import { getChatsForUser, askQuestionAction, createNewChat } from '@/lib/actions';
-import { PlusCircle, MessageSquare, Scale, Pencil, Search, ArrowRight } from 'lucide-react';
+import { Scale, Pencil, Search, ArrowRight } from 'lucide-react';
 import { NewChatDialog } from '@/components/lexi-ai/NewChatDialog';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { AppLogo } from '@/components/icons';
 import { useToast } from '@/hooks/use-toast';
+import { ensureAnonymousAuth, getChatCount, incrementChatCount, resetChatCount } from '@/lib/auth-utils';
+import { AppSidebar } from '@/components/lexi-ai/AppSidebar';
 
 const auth = getAuth(app);
 
@@ -33,19 +35,19 @@ type AppMode = 'review' | 'write' | 'research';
 
 const samplePrompts = {
   review: [
-    "Summarize the key obligations for each party in this agreement.",
-    "Identify any clauses related to termination and liability.",
+    "Summarize the key obligations for each party in this agreement",
+    "Identify any clauses related to termination and liability",
     "What is the governing law and jurisdiction specified in this document?",
   ],
   write: [
-    "Draft a standard non-disclosure agreement (NDA) for a software development project.",
-    "Create a simple freelance contract for graphic design services.",
-    "Write a demand letter for an unpaid invoice of $5,000.",
+    "Draft a standard non-disclosure agreement (NDA) for a software project",
+    "Create a simple freelance contract for graphic design services",
+    "Write a demand letter for an unpaid invoice of $5,000",
   ],
   research: [
-    "What are the legal requirements for GDPR compliance for a US-based company?",
-    "Explain the concept of 'force majeure' in contract law with recent examples.",
-    "Summarize the key findings of the Supreme Court case *Marbury v. Madison*.",
+    "What are the legal requirements for GDPR compliance for a US company?",
+    "Explain the concept of 'force majeure' in contract law with examples",
+    "Summarize the key findings of the Supreme Court case Marbury v. Madison",
   ]
 }
 
@@ -53,7 +55,7 @@ export default function Home() {
   const [activeChat, setActiveChat] = useState<ChatSession | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
   const [suggestedQuestions, setSuggestedQuestions] = useState<SuggestedQuestion[]>([]);
-  const [questionCount, setQuestionCount] = useState(0);
+  const [totalChatCount, setTotalChatCount] = useState(0);
   const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [userChats, setUserChats] = useState<any[]>([]);
@@ -61,16 +63,20 @@ export default function Home() {
   const { toast } = useToast();
 
   useEffect(() => {
+    ensureAnonymousAuth().catch(console.error);
+    
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
-      if (currentUser) {
+      if (currentUser && !currentUser.isAnonymous) {
         fetchUserChats(currentUser.uid);
-        setIsAuthDialogOpen(false); // Close auth dialog if it was open
+        setIsAuthDialogOpen(false);
+        resetChatCount();
+      } else if (currentUser && currentUser.isAnonymous) {
+        setTotalChatCount(getChatCount());
       } else {
-        // Reset state for guest user
         setUserChats([]);
         setActiveChat(null);
-        setQuestionCount(0);
+        setTotalChatCount(0);
       }
     });
     return () => unsubscribe();
@@ -104,7 +110,6 @@ export default function Home() {
       messages: chat.messages || [],
       mode: chat.mode || 'review'
     });
-    setQuestionCount(0);
     setSuggestedQuestions([]);
   };
 
@@ -139,7 +144,6 @@ export default function Home() {
           });
         }
       } else {
-        // Create a temporary local chat for guest users
         setActiveChat({
             id: String(Date.now()),
             title: title,
@@ -150,7 +154,6 @@ export default function Home() {
         });
       }
       setSuggestedQuestions([]);
-      setQuestionCount(0);
   }, [user, toast]);
 
   const handleNewChatCreated = async (newChat: any) => {
@@ -163,18 +166,22 @@ export default function Home() {
   const handleMessagesUpdate = (newMessages: ChatMessage[]) => {
     if (activeChat) {
       setActiveChat(prev => prev ? {...prev, messages: newMessages} : null);
-      if (!user) {
-        const userMessagesCount = newMessages.filter(m => m.role === 'user').length;
-        setQuestionCount(userMessagesCount);
+      if (user?.isAnonymous) {
+        const prevUserMsgCount = activeChat.messages.filter(m => m.role === 'user').length;
+        const newUserMsgCount = newMessages.filter(m => m.role === 'user').length;
+        if (newUserMsgCount > prevUserMsgCount) {
+          const newCount = incrementChatCount();
+          setTotalChatCount(newCount);
+        }
       }
     }
   };
   
   useEffect(() => {
-    if (!user && questionCount >= 3) {
+    if (user?.isAnonymous && totalChatCount >= 3) {
       setIsAuthDialogOpen(true);
     }
-  }, [questionCount, user]);
+  }, [totalChatCount, user]);
 
   const handleSetDocumentText = (text: string) => {
     if (activeChat) {
@@ -184,7 +191,25 @@ export default function Home() {
 
   const handleAuthSuccess = () => {
     setIsAuthDialogOpen(false);
-    // User state will be updated by onAuthStateChanged, which triggers chat fetching.
+  };
+  
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      setUserChats([]);
+      setActiveChat(null);
+      toast({
+        title: 'Logged out',
+        description: 'You have been logged out successfully.',
+      });
+    } catch (error) {
+      console.error('Logout error:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to log out. Please try again.',
+      });
+    }
   };
   
   const handleOpenNewChatDialog = () => setIsNewChatDialogOpen(true);
@@ -209,18 +234,18 @@ export default function Home() {
           const state = await askQuestionAction(null, formData);
           
           if (state.answer) {
-              const finalMessages = [
+              const finalMessages: ChatMessage[] = [
                   ...newMessages,
-                  { id: String(Date.now() + 1), role: 'assistant', content: state.answer },
+                  { id: String(Date.now() + 1), role: 'assistant' as const, content: state.answer },
               ];
               handleMessagesUpdate(finalMessages);
               setSuggestedQuestions(state.suggestedQuestions || []);
           } else if (state.error) {
-              const finalMessages = [
+              const finalMessages: ChatMessage[] = [
                    ...newMessages,
                   {
                       id: String(Date.now() + 1),
-                      role: 'assistant',
+                      role: 'assistant' as const,
                       content: `Error: ${state.error}`,
                   },
               ];
@@ -228,11 +253,11 @@ export default function Home() {
               setSuggestedQuestions([]);
           }
         } catch (e) {
-            const finalMessages = [
+            const finalMessages: ChatMessage[] = [
                ...newMessages,
               {
                   id: String(Date.now() + 1),
-                  role: 'assistant',
+                  role: 'assistant' as const,
                   content: 'An unexpected error occurred.',
               },
           ];
@@ -256,113 +281,96 @@ export default function Home() {
         return <InitialView onSelectMode={handleNewChat} onPromptClick={handlePromptClick} />;
     }
 
+    // Different layouts based on mode
     switch(activeChat.mode) {
-        case 'review':
-            return (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 h-full">
-                    <DocumentView
-                        documentText={activeChat.documentText}
-                        setDocumentText={handleSetDocumentText}
-                        isExtracting={isExtracting}
-                        setIsExtracting={setIsExtracting}
-                        chatId={activeChat.id}
-                        isDocMutable={!user || activeChat.documentText === ''}
-                    />
-                    <Chat
-                        chatId={activeChat.id}
-                        documentText={activeChat.documentText}
-                        messages={activeChat.messages}
-                        setMessages={handleMessagesUpdate}
-                        suggestedQuestions={suggestedQuestions}
-                        setSuggestedQuestions={setSuggestedQuestions}
-                        isLoggedIn={!!user}
-                    />
-                </div>
-            );
-        case 'write':
-            return (
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 h-full">
-                    <div className="lg:col-span-2">
-                        <DocumentView
-                            documentText={activeChat.documentText}
-                            setDocumentText={handleSetDocumentText}
-                            isExtracting={isExtracting}
-                            setIsExtracting={setIsExtracting}
-                            chatId={activeChat.id}
-                            isDocMutable={true} // Always editable in write mode
-                        />
-                    </div>
-                    <Chat
-                        chatId={activeChat.id}
-                        documentText={activeChat.documentText}
-                        messages={activeChat.messages}
-                        setMessages={handleMessagesUpdate}
-                        suggestedQuestions={suggestedQuestions}
-                        setSuggestedQuestions={setSuggestedQuestions}
-                        isLoggedIn={!!user}
-                    />
-                </div>
-            );
-        case 'research':
-            return (
-                <div className="max-w-4xl mx-auto w-full h-full">
-                    <Chat
-                        chatId={activeChat.id}
-                        documentText={""} // No document for research
-                        messages={activeChat.messages}
-                        setMessages={handleMessagesUpdate}
-                        suggestedQuestions={suggestedQuestions}
-                        setSuggestedQuestions={setSuggestedQuestions}
-                        isLoggedIn={!!user}
-                    />
-                </div>
-            );
-        default:
-            return <InitialView onSelectMode={handleNewChat} onPromptClick={handlePromptClick} />;
+      case 'review':
+        return (
+          <div className="h-full grid grid-cols-1 lg:grid-cols-2 gap-4 p-4">
+            <DocumentView
+              documentText={activeChat.documentText}
+              setDocumentText={handleSetDocumentText}
+              isExtracting={isExtracting}
+              setIsExtracting={setIsExtracting}
+              chatId={activeChat.id}
+              isDocMutable={true}
+            />
+            <Chat
+              chatId={activeChat.id}
+              documentText={activeChat.documentText}
+              messages={activeChat.messages}
+              setMessages={handleMessagesUpdate}
+              suggestedQuestions={suggestedQuestions}
+              setSuggestedQuestions={setSuggestedQuestions}
+              isLoggedIn={!!user}
+            />
+          </div>
+        );
+      
+      case 'write':
+        return (
+          <div className="h-full grid grid-cols-1 lg:grid-cols-2 gap-4 p-4">
+            <DocumentView
+              documentText={activeChat.documentText}
+              setDocumentText={handleSetDocumentText}
+              isExtracting={isExtracting}
+              setIsExtracting={setIsExtracting}
+              chatId={activeChat.id}
+              isDocMutable={true}
+            />
+            <Chat
+              chatId={activeChat.id}
+              documentText={activeChat.documentText}
+              messages={activeChat.messages}
+              setMessages={handleMessagesUpdate}
+              suggestedQuestions={suggestedQuestions}
+              setSuggestedQuestions={setSuggestedQuestions}
+              isLoggedIn={!!user}
+            />
+          </div>
+        );
+      
+      case 'research':
+      default:
+        return (
+          <div className="h-full flex flex-col">
+            <Chat
+              chatId={activeChat.id}
+              documentText={activeChat.documentText}
+              messages={activeChat.messages}
+              setMessages={handleMessagesUpdate}
+              suggestedQuestions={suggestedQuestions}
+              setSuggestedQuestions={setSuggestedQuestions}
+              isLoggedIn={!!user}
+            />
+          </div>
+        );
     }
   }
 
 
   return (
-    <SidebarProvider>
-      <div className="flex flex-col h-screen bg-background text-foreground font-body antialiased">
-        <Header>
-            {user && <SidebarTrigger />}
-        </Header>
-        <main className="flex-1 flex overflow-hidden">
-          {user && (
-            <Sidebar>
-                <SidebarContent>
-                    <SidebarHeader>
-                        <SidebarMenu>
-                             <SidebarMenuItem>
-                                <SidebarMenuButton onClick={handleOpenNewChatDialog}>
-                                    <PlusCircle />
-                                    New Chat
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
-                        </SidebarMenu>
-                    </SidebarHeader>
-                    <SidebarMenu>
-                        {userChats.map((chat) => (
-                             <SidebarMenuItem key={chat.id}>
-                                <SidebarMenuButton onClick={() => handleSelectChat(chat)} isActive={activeChat?.id === chat.id}>
-                                    <MessageSquare />
-                                    {chat.title}
-                                </SidebarMenuButton>
-                            </SidebarMenuItem>
-                        ))}
-                    </SidebarMenu>
-                </SidebarContent>
-            </Sidebar>
-          )}
+    <SidebarProvider defaultOpen={true}>
+      <div className="flex h-screen bg-background text-foreground font-body antialiased overflow-hidden">
+        {/* Sidebar - Always visible */}
+        <AppSidebar
+          userChats={userChats}
+          activeChat={activeChat}
+          onSelectChat={handleSelectChat}
+          onNewChat={handleOpenNewChatDialog}
+          onLogout={handleLogout}
+          user={user}
+        />
 
-          <SidebarInset>
-            <div className="w-full h-full flex flex-col items-center justify-center p-4 lg:p-6">
-                <MainContent />
-            </div>
-          </SidebarInset>
-        </main>
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <Header>
+            <SidebarTrigger />
+          </Header>
+          
+          <main className="flex-1 overflow-hidden">
+            <MainContent />
+          </main>
+        </div>
         <Toaster />
         <AuthDialog
           isOpen={isAuthDialogOpen}
@@ -381,54 +389,92 @@ export default function Home() {
 
 const InitialView = ({ onSelectMode, onPromptClick }: { onSelectMode: (mode: AppMode) => void, onPromptClick: (prompt: string, mode: AppMode) => void }) => {
     return (
-        <div className="w-full max-w-4xl mx-auto flex flex-col items-center justify-center h-full text-foreground">
-            <AppLogo className="h-12 w-12 text-primary mb-4" />
-            <h1 className="text-2xl font-bold mb-8">How can I help you today?</h1>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
-                <ModeCard 
-                    icon={<Scale />} 
-                    title="Review Document" 
-                    prompts={samplePrompts.review} 
-                    onSelect={() => onSelectMode('review')}
-                    onPromptClick={(prompt) => onPromptClick(prompt, 'review')}
-                />
-                <ModeCard 
-                    icon={<Pencil />} 
-                    title="Write Contract" 
-                    prompts={samplePrompts.write}
-                    onSelect={() => onSelectMode('write')}
-                    onPromptClick={(prompt) => onPromptClick(prompt, 'write')}
-                />
-                <ModeCard 
-                    icon={<Search />} 
-                    title="Legal Research" 
-                    prompts={samplePrompts.research}
-                    onSelect={() => onSelectMode('research')}
-                    onPromptClick={(prompt) => onPromptClick(prompt, 'research')}
-                />
+        <div className="h-full flex flex-col items-center justify-center px-4 py-8">
+            <div className="w-full max-w-4xl mx-auto space-y-8">
+                {/* Header */}
+                <div className="text-center space-y-2">
+                    <AppLogo className="h-10 w-10 text-primary mx-auto mb-3" />
+                    <h1 className="text-2xl md:text-3xl font-semibold">LexiAI</h1>
+                </div>
+
+                {/* Three Category Sections */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Review Document */}
+                    <CategorySection
+                        icon={<Scale className="h-5 w-5" />}
+                        title="Review Document"
+                        description="Upload and analyze legal documents"
+                        prompts={samplePrompts.review}
+                        onPromptClick={(prompt) => onPromptClick(prompt, 'review')}
+                        mode="review"
+                    />
+
+                    {/* Write Contract */}
+                    <CategorySection
+                        icon={<Pencil className="h-5 w-5" />}
+                        title="Write Contract"
+                        description="Draft contracts with AI assistance"
+                        prompts={samplePrompts.write}
+                        onPromptClick={(prompt) => onPromptClick(prompt, 'write')}
+                        mode="write"
+                    />
+
+                    {/* Legal Research */}
+                    <CategorySection
+                        icon={<Search className="h-5 w-5" />}
+                        title="Legal Research"
+                        description="Research legal topics and cases"
+                        prompts={samplePrompts.research}
+                        onPromptClick={(prompt) => onPromptClick(prompt, 'research')}
+                        mode="research"
+                    />
+                </div>
             </div>
         </div>
     );
 };
 
-const ModeCard = ({ icon, title, prompts, onSelect, onPromptClick }: { icon: React.ReactNode, title: string, prompts: string[], onSelect: () => void, onPromptClick: (prompt: string) => void }) => {
+const CategorySection = ({ 
+    icon, 
+    title, 
+    description, 
+    prompts, 
+    onPromptClick, 
+    mode 
+}: { 
+    icon: React.ReactNode, 
+    title: string, 
+    description: string,
+    prompts: string[], 
+    onPromptClick: (prompt: string) => void,
+    mode: AppMode
+}) => {
     return (
-        <Card className="bg-secondary/50 p-4 flex flex-col">
-            <Button variant="ghost" onClick={onSelect} className="w-full justify-start mb-4">
-                <div className="flex items-center gap-3">
+        <div className="flex flex-col space-y-3">
+            {/* Category Header */}
+            <div className="flex flex-col items-center text-center space-y-2 mb-2">
+                <div className="h-8 w-8 text-muted-foreground">
                     {icon}
-                    <h3 className="font-semibold text-lg">{title}</h3>
                 </div>
-            </Button>
-            <div className="flex flex-col gap-2 flex-1 justify-end">
+                <div>
+                    <h3 className="font-medium text-base">{title}</h3>
+                    <p className="text-xs text-muted-foreground mt-1">{description}</p>
+                </div>
+            </div>
+
+            {/* Prompts */}
+            <div className="space-y-2">
                 {prompts.map((prompt, i) => (
-                    <Button key={i} variant="ghost" className="text-sm h-auto text-left justify-between text-muted-foreground hover:text-foreground" onClick={() => onPromptClick(prompt)}>
-                        <span>{prompt}</span>
-                        <ArrowRight className="h-4 w-4 ml-2 opacity-50 flex-shrink-0"/>
+                    <Button
+                        key={i}
+                        variant="ghost"
+                        className="w-full text-left h-auto py-2.5 px-3 text-xs justify-start hover:bg-secondary/50 border border-border/50 rounded-lg"
+                        onClick={() => onPromptClick(prompt)}
+                    >
+                        <span className="line-clamp-2 text-muted-foreground">"{prompt}" →</span>
                     </Button>
                 ))}
             </div>
-        </Card>
+        </div>
     );
 }

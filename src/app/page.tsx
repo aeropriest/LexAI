@@ -25,18 +25,18 @@ export default function LandingPage() {
 
       <main className="flex-1">
         {/* Hero Section */}
-        <section className="relative h-screen min-h-[600px] w-full text-white">
-          {/* Background Image */}
+        <section className="relative h-screen min-h-[700px] w-full text-white overflow-hidden">
+          {/* Background with Gradient */}
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900" />
           <Image 
-            src="https://picsum.photos/seed/lexai-hero/1920/1080"
+            src="https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=1920&h=1080&fit=crop"
             alt="Legal documents analysis background"
             fill
-            className="object-cover"
-            data-ai-hint="legal document"
+            className="object-cover opacity-10"
             priority
           />
-          {/* Black Tint Overlay */}
-          <div className="absolute inset-0 bg-black/60" />
+          {/* Animated gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-background/20 to-transparent" />
 
           {/* Header */}
           <header className="absolute top-0 left-0 right-0 p-4 z-10">
@@ -50,40 +50,61 @@ export default function LandingPage() {
           </header>
 
           {/* Hero Content */}
-          <div className="relative z-5 flex h-full flex-col items-center justify-center text-center px-4">
-              <h2 className="text-4xl md:text-6xl font-bold mb-4 tracking-tight">
-                Unlock Insights from Your Legal Documents
-              </h2>
-              <p className="text-lg md:text-xl text-white/80 max-w-3xl mx-auto mb-8">
-                LexiAI is an AI-powered assistant that helps you analyze,
-                understand, and extract key information from complex legal texts
-                in seconds. Stop spending hours on manual review and start
-                getting answers instantly.
-              </p>
-              <div className="flex flex-col items-center gap-4">
-                  <Button size="lg" onClick={() => router.push('/app')} variant="secondary" className="bg-white text-primary hover:bg-white/90">
-                    Get Started for Free
-                  </Button>
-                  <p className="text-sm text-white/60">
-                  No credit card required.
-                  </p>
+          <div className="relative z-10 flex h-full flex-col items-center justify-center text-center px-4">
+              <div className="max-w-5xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-1000">
+                <div className="inline-block px-4 py-2 bg-blue-500/10 border border-blue-500/20 rounded-full text-blue-300 text-sm font-medium mb-4">
+                  ✨ AI-Powered Legal Intelligence
+                </div>
+                <h1 className="text-5xl md:text-7xl font-bold mb-6 tracking-tight leading-tight">
+                  Your AI Legal
+                  <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">
+                    Assistant
+                  </span>
+                </h1>
+                <p className="text-xl md:text-2xl text-white/70 max-w-3xl mx-auto leading-relaxed">
+                  Analyze documents, draft contracts, and conduct legal research with the power of AI.
+                  <span className="block mt-2">Save hours of work in seconds.</span>
+                </p>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
+                    <Button 
+                      size="lg" 
+                      onClick={() => router.push('/app')} 
+                      className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-6 text-lg font-semibold shadow-xl shadow-blue-500/20 hover:shadow-2xl hover:shadow-blue-500/30 transition-all"
+                    >
+                      Start Free Trial
+                    </Button>
+                    <Button 
+                      size="lg" 
+                      variant="outline"
+                      onClick={() => router.push('/app')} 
+                      className="border-white/20 text-white hover:bg-white/10 px-8 py-6 text-lg"
+                    >
+                      Watch Demo
+                    </Button>
+                </div>
+                <p className="text-sm text-white/50 pt-2">
+                  No credit card required • 3 free chats to start
+                </p>
               </div>
           </div>
         </section>
 
 
         {/* Features Section */}
-        <section id="features" className="py-20 lg:py-24">
+        <section id="features" className="py-24 lg:py-32 bg-gradient-to-b from-background to-secondary/20">
           <div className="container mx-auto px-4">
-            <div className="text-center mb-12">
-              <h3 className="text-3xl md:text-4xl font-bold">
-                Powerful Features, Simplified
-              </h3>
-              <p className="text-muted-foreground mt-2 max-w-2xl mx-auto">
-                Everything you need to supercharge your legal document analysis.
+            <div className="text-center mb-16">
+              <div className="inline-block px-4 py-2 bg-primary/10 border border-primary/20 rounded-full text-primary text-sm font-medium mb-4">
+                Features
+              </div>
+              <h2 className="text-4xl md:text-5xl font-bold mb-4">
+                Everything You Need
+              </h2>
+              <p className="text-muted-foreground text-lg mt-4 max-w-2xl mx-auto">
+                Powerful AI tools designed specifically for legal professionals.
               </p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <FeatureCard
                 icon={<FileText className="h-8 w-8 text-primary" />}
                 title="Document Upload"
@@ -109,14 +130,20 @@ export default function LandingPage() {
         </section>
 
         {/* Testimonials Section */}
-        <section id="testimonials" className="py-20 lg:py-24 bg-card/50">
+        <section id="testimonials" className="py-24 lg:py-32 bg-secondary/30">
           <div className="container mx-auto px-4">
-            <div className="text-center mb-12">
-              <h3 className="text-3xl md:text-4xl font-bold">
+            <div className="text-center mb-16">
+              <div className="inline-block px-4 py-2 bg-primary/10 border border-primary/20 rounded-full text-primary text-sm font-medium mb-4">
+                Testimonials
+              </div>
+              <h2 className="text-4xl md:text-5xl font-bold mb-4">
                 Trusted by Legal Professionals
-              </h3>
+              </h2>
+              <p className="text-muted-foreground text-lg mt-4 max-w-2xl mx-auto">
+                See what our users have to say about LexiAI.
+              </p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <TestimonialCard
                 name="Sarah J., Corporate Lawyer"
                 testimonial="LexiAI has been a game-changer for due diligence. What used to take days now takes a fraction of the time. It's an indispensable tool in my practice."
@@ -198,10 +225,10 @@ function FeatureCard({
   description: string;
 }) {
   return (
-    <Card className="text-center p-6">
-      <div className="flex justify-center mb-4">{icon}</div>
-      <CardTitle className="text-xl mb-2">{title}</CardTitle>
-      <p className="text-muted-foreground">{description}</p>
+    <Card className="text-center p-8 hover:shadow-lg transition-all duration-300 hover:-translate-y-1 border-border/50 bg-card/50 backdrop-blur">
+      <div className="flex justify-center mb-6 p-4 bg-primary/10 rounded-2xl w-fit mx-auto">{icon}</div>
+      <CardTitle className="text-xl mb-3 font-semibold">{title}</CardTitle>
+      <p className="text-muted-foreground leading-relaxed">{description}</p>
     </Card>
   );
 }
@@ -216,16 +243,16 @@ function TestimonialCard({
   avatarUrl: string;
 }) {
   return (
-    <Card className="p-6 text-left">
+    <Card className="p-8 text-left hover:shadow-lg transition-all duration-300 border-border/50 bg-card/50 backdrop-blur">
       <CardContent className="p-0">
-        <p className="italic text-muted-foreground mb-4">"{testimonial}"</p>
+        <p className="text-muted-foreground mb-6 leading-relaxed text-base">"{testimonial}"</p>
         <div className="flex items-center gap-4">
-          <Avatar>
+          <Avatar className="h-12 w-12">
             <AvatarImage src={avatarUrl} alt={name} />
             <AvatarFallback>{name.charAt(0)}</AvatarFallback>
           </Avatar>
           <div>
-            <p className="font-semibold">{name}</p>
+            <p className="font-semibold text-foreground">{name}</p>
           </div>
         </div>
       </CardContent>

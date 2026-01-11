@@ -12,16 +12,17 @@ export function Header({children}: {children?: ReactNode}) {
   }
 
   return (
-    <header className="p-4 border-b bg-sidebar-background">
-      <div className="container mx-auto flex items-center justify-between">
-        <div className="flex items-center gap-3">
+    <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="flex h-16 items-center px-4">
+        <div className="flex items-center gap-3 flex-1">
           {children}
-          <AppLogo className="h-7 w-7 text-primary" />
-          <h1 className="text-xl font-bold text-foreground">LexiAI</h1>
+          <AppLogo className="h-6 w-6 text-primary" />
+          <h1 className="text-lg font-semibold text-foreground">LexiAI</h1>
         </div>
-        {auth.currentUser && (
-          <Button variant="ghost" size="icon" onClick={handleSignOut} title="Sign Out">
-            <LogOut />
+        {auth.currentUser && !auth.currentUser.isAnonymous && (
+          <Button variant="ghost" size="sm" onClick={handleSignOut} className="gap-2">
+            <LogOut className="h-4 w-4" />
+            <span className="hidden sm:inline">Sign Out</span>
           </Button>
         )}
       </div>

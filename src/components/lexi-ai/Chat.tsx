@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useActionState } from 'react';
-import { Bot, User, Send, FileWarning, Lightbulb, Loader2 } from 'lucide-react';
+import { Bot, User, Send, FileWarning, Lightbulb, Loader2, MessageSquare } from 'lucide-react';
 import { useFormStatus } from 'react-dom';
 import { askQuestionAction } from '@/lib/actions';
 import type { ChatMessage, SuggestedQuestion } from '@/lib/types';
@@ -26,24 +26,29 @@ function ChatInputForm({ documentText, question, setQuestion, chatId, isLoggedIn
   const { pending } = useFormStatus();
 
   return (
-    <div className="flex w-full items-center gap-2">
+    <div className="relative flex w-full items-center">
       <Input
         name="question"
-        placeholder={documentRequired && !documentText ? "Please add a document first" : "Ask a question..."}
+        placeholder={documentRequired && !documentText ? "Please add a document first" : "Message LexiAI..."}
         value={question}
         onChange={(e) => setQuestion(e.target.value)}
         disabled={(documentRequired && !documentText) || pending}
         autoComplete="off"
-        className="bg-background/50"
+        className="pr-12 h-12 rounded-full border-border/50 bg-secondary/50 focus-visible:ring-1"
       />
       <input type="hidden" name="documentText" value={documentText} />
       <input type="hidden" name="chatId" value={chatId} />
       <input type="hidden" name="isLoggedIn" value={String(isLoggedIn)} />
-      <Button type="submit" size="icon" disabled={(documentRequired && !documentText) || pending || !question.trim()}>
+      <Button 
+        type="submit" 
+        size="icon" 
+        disabled={(documentRequired && !documentText) || pending || !question.trim()}
+        className="absolute right-1.5 h-9 w-9 rounded-full"
+      >
         {pending ? (
-          <Loader2 className="h-5 w-5 animate-spin" />
+          <Loader2 className="h-4 w-4 animate-spin" />
         ) : (
-          <Send className="h-5 w-5" />
+          <Send className="h-4 w-4" />
         )}
         <span className="sr-only">Send message</span>
       </Button>
@@ -178,46 +183,68 @@ export function Chat({
   }
 
   return (
-    <Card className="h-full flex flex-col bg-transparent border-0 shadow-none">
-      <CardHeader>
-        <CardTitle>Chat Assistant</CardTitle>
-      </CardHeader>
-      <CardContent className="flex-1 flex flex-col gap-4 overflow-hidden">
-        <ScrollArea className="flex-1 pr-4" ref={scrollAreaRef}>
-          <div className="space-y-6">
-            {messages.length === 0 && documentRequired && !documentText ? (
-              <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full p-8">
-                <FileWarning className="h-12 w-12 mb-4" />
-                <p className="text-lg font-medium">No document loaded</p>
-                <p>Paste your document to start asking questions.</p>
-              </div>
-            ) : (
-              messages.map((msg) => <ChatBubble key={msg.id} message={msg} />)
-            )}
-            { pending && <ChatBubble message={{id: 'loading', role: 'assistant', content: 'Thinking...'}}/> }
+    <div className="h-full flex flex-col border border-border/50 rounded-lg bg-card">
+      {/* Messages Area */}
+      <div className="flex-1 overflow-hidden">
+        <ScrollArea className="h-full" ref={scrollAreaRef}>
+          <div className="px-4 py-6">
+            <div className="space-y-6">
+              {messages.length === 0 && documentRequired && !documentText ? (
+                <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full py-20">
+                  <FileWarning className="h-12 w-12 mb-4" />
+                  <p className="text-lg font-medium">No document loaded</p>
+                  <p className="text-xs">Paste your document to start asking questions.</p>
+                </div>
+              ) : messages.length === 0 ? (
+                <div className="flex flex-col items-center justify-center text-center text-muted-foreground h-full py-20">
+                  <MessageSquare className="h-12 w-12 mb-4" />
+                  <p className="text-lg font-medium">Start a conversation</p>
+                  <p className="text-xs">Ask a question to get started.</p>
+                </div>
+              ) : (
+                messages.map((msg) => <ChatBubble key={msg.id} message={msg} />)
+              )}
+              { pending && <ChatBubble message={{id: 'loading', role: 'assistant', content: 'Thinking...'}}/> }
+            </div>
           </div>
         </ScrollArea>
-        {suggestedQuestions.length > 0 && !pending && (
-            <div className="flex flex-col gap-2 pt-4 border-t">
-                <p className="text-sm font-medium text-muted-foreground flex items-center gap-2"><Lightbulb className="h-4 w-4"/> Suggested Questions</p>
-                <div className="flex flex-wrap gap-2">
-                    {suggestedQuestions.map((sq, i) => (
-                        <Button key={i} variant="outline" size="sm" onClick={() => handleSuggestedQuestionClick(sq)}>
-                            {sq}
-                        </Button>
-                    ))}
-                </div>
+      </div>
+
+      {/* Suggested Questions */}
+      {suggestedQuestions.length > 0 && !pending && (
+        <div className="border-t">
+          <div className="px-4 py-3">
+            <div className="flex flex-col gap-2">
+              <p className="text-xs font-medium text-muted-foreground flex items-center gap-2">
+                <Lightbulb className="h-3 w-3"/> Suggested Questions
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {suggestedQuestions.map((sq, i) => (
+                  <Button key={i} variant="outline" size="sm" className="text-xs h-7" onClick={() => handleSuggestedQuestionClick(sq)}>
+                    {sq}
+                  </Button>
+                ))}
+              </div>
             </div>
-        )}
-      </CardContent>
-      <CardFooter className="pt-4 border-t">
-        <form
-          action={handleFormSubmit}
-          className="w-full"
-        >
-          <ChatInputForm documentText={documentText} question={question} setQuestion={setQuestion} chatId={chatId} isLoggedIn={isLoggedIn} documentRequired={documentRequired}/>
-        </form>
-      </CardFooter>
-    </Card>
+          </div>
+        </div>
+      )}
+
+      {/* Input Area */}
+      <div className="border-t">
+        <div className="px-4 py-3">
+          <form action={handleFormSubmit} className="w-full">
+            <ChatInputForm 
+              documentText={documentText} 
+              question={question} 
+              setQuestion={setQuestion} 
+              chatId={chatId} 
+              isLoggedIn={isLoggedIn} 
+              documentRequired={documentRequired}
+            />
+          </form>
+        </div>
+      </div>
+    </div>
   );
 }

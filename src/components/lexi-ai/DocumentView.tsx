@@ -97,12 +97,12 @@ export function DocumentView({
   };
   
   return (
-    <Card className="h-full flex flex-col bg-secondary/30">
-      <CardHeader className="flex flex-row items-center justify-between">
+    <Card className="h-full flex flex-col border-border/50">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
         <div>
-          <CardTitle>Document</CardTitle>
+          <CardTitle className="text-lg">Document</CardTitle>
           { documentText === '' && 
-            <CardDescription>
+            <CardDescription className="text-xs mt-1">
               Paste or upload a .txt, .md, .pdf, .png, .jpeg, or .doc file.
             </CardDescription>
           }
@@ -114,26 +114,37 @@ export function DocumentView({
               ref={fileInputRef}
               onChange={handleFileChange}
               className="hidden"
-              accept=".txt,.md,.pdf,.png,.jpeg,.jpg,.doc"
+              accept=".txt,.md,.pdf,.png,.jpeg,.jpg,.doc,.docx"
               disabled={isExtracting}
             />
-            <Button variant="outline" onClick={handleUploadClick} disabled={isExtracting}>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={handleUploadClick} 
+              disabled={isExtracting}
+              className="gap-2"
+            >
               {isExtracting ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Processing...
+                </>
               ) : (
-                <Upload className="mr-2 h-4 w-4" />
+                <>
+                  <Upload className="h-4 w-4" />
+                  Upload
+                </>
               )}
-              {isExtracting ? 'Processing...' : 'Upload Document'}
             </Button>
           </>
         )}
       </CardHeader>
-      <CardContent className="flex-grow">
+      <CardContent className="flex-1 overflow-hidden p-4">
         <Textarea
           placeholder="Paste your document text here or upload a file to get started..."
           value={documentText}
           onChange={(e) => isDocMutable && handleTextChange(e.target.value)}
-          className="h-full min-h-[400px] lg:min-h-0 resize-none font-code text-sm bg-background/50"
+          className="h-full w-full resize-none text-sm bg-background border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
           aria-label="Document text"
           disabled={isExtracting || (!isDocMutable && documentText !== '')}
         />
