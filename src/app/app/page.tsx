@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { Header } from '@/components/lexi-ai/Header';
 import { DocumentView } from '@/components/lexi-ai/DocumentView';
 import { Chat } from '@/components/lexi-ai/Chat';
@@ -63,7 +64,7 @@ export default function Home() {
   const { toast } = useToast();
 
   useEffect(() => {
-    ensureAnonymousAuth().catch(console.error);
+    // ensureAnonymousAuth().catch(console.error); // Temporarily disabled - enable Anonymous Auth in Firebase Console
     
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
@@ -388,44 +389,50 @@ export default function Home() {
 }
 
 const InitialView = ({ onSelectMode, onPromptClick }: { onSelectMode: (mode: AppMode) => void, onPromptClick: (prompt: string, mode: AppMode) => void }) => {
+    const router = useRouter();
+    
     return (
-        <div className="h-full flex flex-col items-center justify-center px-4 py-8">
-            <div className="w-full max-w-4xl mx-auto space-y-8">
+        <div className="h-full flex flex-col items-center justify-center px-6 py-8 overflow-auto">
+            <div className="w-full max-w-5xl mx-auto space-y-10">
                 {/* Header */}
-                <div className="text-center space-y-2">
-                    <AppLogo className="h-10 w-10 text-primary mx-auto mb-3" />
-                    <h1 className="text-2xl md:text-3xl font-semibold">LexiAI</h1>
+                <div className="text-center space-y-3">
+                    <AppLogo className="h-12 w-12 text-primary mx-auto mb-4" />
+                    <h1 className="text-3xl md:text-4xl font-semibold">LexiAI</h1>
+                    <p className="text-muted-foreground text-sm">Choose a mode to get started</p>
                 </div>
 
                 {/* Three Category Sections */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
                     {/* Review Document */}
                     <CategorySection
-                        icon={<Scale className="h-5 w-5" />}
+                        icon={<Scale className="h-6 w-6" />}
                         title="Review Document"
                         description="Upload and analyze legal documents"
                         prompts={samplePrompts.review}
                         onPromptClick={(prompt) => onPromptClick(prompt, 'review')}
+                        onCategoryClick={() => router.push('/app/review')}
                         mode="review"
                     />
 
                     {/* Write Contract */}
                     <CategorySection
-                        icon={<Pencil className="h-5 w-5" />}
+                        icon={<Pencil className="h-6 w-6" />}
                         title="Write Contract"
                         description="Draft contracts with AI assistance"
                         prompts={samplePrompts.write}
                         onPromptClick={(prompt) => onPromptClick(prompt, 'write')}
+                        onCategoryClick={() => router.push('/app/write')}
                         mode="write"
                     />
 
                     {/* Legal Research */}
                     <CategorySection
-                        icon={<Search className="h-5 w-5" />}
+                        icon={<Search className="h-6 w-6" />}
                         title="Legal Research"
                         description="Research legal topics and cases"
                         prompts={samplePrompts.research}
                         onPromptClick={(prompt) => onPromptClick(prompt, 'research')}
+                        onCategoryClick={() => router.push('/app/research')}
                         mode="research"
                     />
                 </div>
@@ -439,7 +446,8 @@ const CategorySection = ({
     title, 
     description, 
     prompts, 
-    onPromptClick, 
+    onPromptClick,
+    onCategoryClick,
     mode 
 }: { 
     icon: React.ReactNode, 
@@ -447,34 +455,44 @@ const CategorySection = ({
     description: string,
     prompts: string[], 
     onPromptClick: (prompt: string) => void,
+    onCategoryClick: () => void,
     mode: AppMode
 }) => {
     return (
-        <div className="flex flex-col space-y-3">
+        <div className="flex flex-col space-y-4 p-6 border border-border/50 rounded-xl hover:border-border transition-all bg-card/50">
             {/* Category Header */}
-            <div className="flex flex-col items-center text-center space-y-2 mb-2">
-                <div className="h-8 w-8 text-muted-foreground">
+            <div className="flex flex-col items-center text-center space-y-3">
+                <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
                     {icon}
                 </div>
                 <div>
-                    <h3 className="font-medium text-base">{title}</h3>
-                    <p className="text-xs text-muted-foreground mt-1">{description}</p>
+                    <h3 className="font-semibold text-lg">{title}</h3>
+                    <p className="text-xs text-muted-foreground mt-1.5">{description}</p>
                 </div>
             </div>
 
             {/* Prompts */}
-            <div className="space-y-2">
+            <div className="space-y-2 flex-1">
                 {prompts.map((prompt, i) => (
                     <Button
                         key={i}
                         variant="ghost"
-                        className="w-full text-left h-auto py-2.5 px-3 text-xs justify-start hover:bg-secondary/50 border border-border/50 rounded-lg"
+                        className="w-full text-left h-auto py-3 px-3 text-xs justify-start hover:bg-secondary/80 border border-border/30 rounded-md whitespace-normal"
                         onClick={() => onPromptClick(prompt)}
                     >
-                        <span className="line-clamp-2 text-muted-foreground">"{prompt}" →</span>
+                        <span className="text-muted-foreground break-words">"{prompt}"</span>
                     </Button>
                 ))}
             </div>
+            
+            {/* Go to Route Button */}
+            <Button 
+                onClick={onCategoryClick}
+                className="w-full mt-2"
+                variant="outline"
+            >
+                Open {title}
+            </Button>
         </div>
     );
 }
